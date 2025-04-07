@@ -4,16 +4,20 @@
 
 namespace tsa 
 {
-	struct Framebuffer
+	enum DepthType
 	{
-		GLuint fbo;
-		GLuint rbo;
-		GLuint color0;
-		GLuint brightness;
-		GLuint depthColor;
+		RENDER_BUFFER, TEXTURE
+	};
+	struct FrameBuffer
+	{
+		unsigned int fbo;
+		unsigned int colorBuffer[8];
+		unsigned int depthBuffer;
+		unsigned int width;
+		unsigned int hight;
 	};
 
-	Framebuffer createFrameBuffer(float width, float height, GLuint colorFiltering);
-	Framebuffer createHDRFrameBuffer(float width, float height);
-	Framebuffer createBloomHDRFrameBuffer(float width, float height);
+	FrameBuffer createFrameBuffer(unsigned int width, unsigned int hight, unsigned int colorFormat, DepthType type = RENDER_BUFFER);
+	FrameBuffer createHDR_FramBuffer(unsigned int width, unsigned int hight);
+	FrameBuffer createShadowBuffer(unsigned int shdw_width, unsigned int shdw_hight);
 }

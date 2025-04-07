@@ -14,6 +14,7 @@
 #include <ew/cameraController.h>
 #include <ew/transform.h>
 #include <ew/texture.h>
+#include <ew/procGen.h>
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
@@ -49,9 +50,19 @@ Material mats[3] = {
 	{1.0, 0.8, 0.3, 128, "Rock"},
 	{1.0, 0.8, 0.4, 30, "Plastic"}
 };
+
+
 short matIndex = 0;
 Material* currMat = &mats[matIndex];
 bool usingNormalMap = true;
+
+
+ew::Mesh coolPortalCube;
+ew::Mesh coolerAwsomePortalCube;
+
+ew::Transform coolPortalCubeCoolTransform;
+ew::Transform coolerAwesomePortalCubeCoolAwesomeTransform;
+
 
 void thing(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, GLint tex, GLint normalMap, const float dt)
 {
@@ -75,7 +86,6 @@ void thing(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, G
 	shader.setMat4("_Model", modelTransform.modelMatrix());
 	shader.setMat4("camera_viewProj", camera.projectionMatrix() * camera.viewMatrix());
 	shader.setInt("_MainTex", 0);
-	shader.setInt("_NormalMap", 1);
 	shader.setBool("_Use_NormalMap", usingNormalMap);
 	shader.setVec3("_EyePos", camera.position);
 
@@ -85,6 +95,31 @@ void thing(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, G
 	shader.setFloat("_Material.shininess", currMat->shininess);
 
 	model.draw();
+}
+void renderPortal(ew::Shader& shader, GLuint tex)
+{
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	glEnable(GL_DEPTH_TEST);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	//GFX Pass
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+
+	shader.use();
+
+	shader.setMat4("_Model", coolPortalCubeCoolTransform.modelMatrix());
+	shader.setMat4("camera_viewProj", camera.projectionMatrix() * camera.viewMatrix());
+
+	shader.setInt("_MainTex", 0);
+
+	coolPortalCube.draw();
+	
+
 }
 
 int main() {
@@ -97,8 +132,15 @@ int main() {
 	camera.fov = 60.0f;
 
 	ew::Shader lit_Shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 
 	ew::Model suzanne = ew::Model("assets/suzanne.obj");
+
+	coolPortalCube = ew::createCube(5);
+	coolPortalCubeCoolTransform.position = {0, 0, 0};
+
+	coolerAwsomePortalCube = ew::createCube(5);
+	coolerAwesomePortalCubeCoolAwesomeTransform.position = {10, 0, 0};
 
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	GLint rockNormal = ew::loadTexture("assets/Rock_Normal.png");
@@ -112,7 +154,9 @@ int main() {
 
 		//RENDER
 		camController.move(window, &camera, deltaTime);
-		thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
+		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
+
+		renderPortal(defaultLit, rockNormal);
 		drawUI();
 
 		glfwSwapBuffers(window);
