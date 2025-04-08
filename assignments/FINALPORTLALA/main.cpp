@@ -30,34 +30,15 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 
-struct Material
-{
-	float ambientK = 1.0;
-	float diffuseK = 0.5;
-	float specularK = 0.5;
-	float shininess = 128;
-	char* name = "Default";
-};
 
-enum Materials {
-	METAL,
-	ROCK,
-	PLASTIC
-};
 
 //Caching things
 ew::Camera camera;
 ew::CameraController camController;
+
+ew::Model* pSuzanne;
 ew::Transform suzanneTransform;
-Material mats[3] = { 
-	{1.0, 0.6, 1.0, 30, "Metal"},
-	{1.0, 0.8, 0.3, 128, "Rock"},
-	{1.0, 0.8, 0.4, 30, "Plastic"}
-};
 
-
-short matIndex = 0;
-Material* currMat = &mats[matIndex];
 bool usingNormalMap = true;
 
 struct Portal 
@@ -74,41 +55,7 @@ Portal coolPortal;
 Portal coolerAwesomePortal;
 GLint rockNormal;
 
-
-void thing(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, GLint tex, GLint normalMap, const float dt)
-{
-	//Pipeline defenitions
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glEnable(GL_DEPTH_TEST);
-
-	//GFX Pass
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, normalMap);
-
-	shader.use();
-	modelTransform.rotation = glm::rotate(modelTransform.rotation, dt, glm::vec3(0.0, 1.0, 0.0));
-	shader.setMat4("_Model", modelTransform.modelMatrix());
-	shader.setMat4("camera_viewProj", camera.projectionMatrix() * camera.viewMatrix());
-	shader.setInt("_MainTex", 0);
-	shader.setBool("_Use_NormalMap", usingNormalMap);
-	shader.setVec3("_EyePos", camera.position);
-
-	shader.setFloat("_Material.ambientK", currMat->ambientK);
-	shader.setFloat("_Material.diffuseK", currMat->diffuseK);
-	shader.setFloat("_Material.specularK", currMat->specularK);
-	shader.setFloat("_Material.shininess", currMat->shininess);
-
-	model.draw();
-}
-
-void renderPortal(ew::Shader& shader, GLuint tex, glm::mat4 view)
+void renderScene(ew::Shader& shader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
@@ -132,6 +79,11 @@ void renderPortal(ew::Shader& shader, GLuint tex, glm::mat4 view)
 	
 	shader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
 	coolerAwesomePortal.portalMesh.draw();
+	
+	glCullFace(GL_BACK);
+
+	shader.setMat4("_Model", suzanneTransform.modelMatrix());
+	pSuzanne->draw();
 }
 
 void renderPortalView(Portal& p, ew::Shader& sceneShader)
@@ -146,8 +98,8 @@ void renderPortalView(Portal& p, ew::Shader& sceneShader)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
-
-		renderPortal(sceneShader, rockNormal, destinationView);
+		glEnable(GL_DEPTH_TEST);
+		renderScene(sceneShader, rockNormal, destinationView);
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -165,20 +117,22 @@ int main() {
 	ew::Shader lit_Shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 
-	ew::Model suzanne = ew::Model("assets/suzanne.obj");
+	pSuzanne = new ew::Model("assets/suzanne.obj");
 
 	coolPortal.portalMesh = ew::createCube(5);
-	coolPortal.regularPortalTransform.position = {0, 0, 0};
+	coolPortal.regularPortalTransform.position = glm::vec3(0, 0, 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 
 	coolerAwesomePortal.portalMesh = ew::createCube(5);
-	coolerAwesomePortal.regularPortalTransform.position = {10, 0, 0};
+	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
+
+	suzanneTransform.position = glm::vec3(10, 0, -7);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -192,7 +146,9 @@ int main() {
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
 		renderPortalView(coolPortal, defaultLit);
 		renderPortalView(coolerAwesomePortal, defaultLit);
-		renderPortal(defaultLit, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		renderScene(defaultLit, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+
+
 		drawUI();
 
 		glfwSwapBuffers(window);
@@ -207,21 +163,10 @@ void drawUI() {
 	ImGui::NewFrame();
 
 	ImGui::Begin("Settings");
-	if (ImGui::BeginCombo("Select Material", currMat->name))
-	{
-		for (int i = 0; i < sizeof(mats) / sizeof(mats[0]); i++)
-		{
-			bool is_selected = (currMat->name == mats[i].name);
-			if (ImGui::Selectable(mats[i].name, is_selected))
-			{
-				currMat = &mats[i];
-			}
-		}
-		ImGui::EndCombo();
-	}
 	
 	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
