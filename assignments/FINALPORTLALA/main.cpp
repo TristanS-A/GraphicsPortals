@@ -86,7 +86,7 @@ void renderScene(ew::Shader& shader, GLuint tex, glm::mat4 view)
 	pSuzanne->draw();
 }
 
-void renderPortalView(Portal& p, ew::Shader& sceneShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader)
 {
 	//calcualte cam
 	ew::Camera portal;
@@ -94,12 +94,12 @@ void renderPortalView(Portal& p, ew::Shader& sceneShader)
 	glm::mat4 destinationView =
 		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
-		* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());
+			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());
 
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		renderScene(sceneShader, rockNormal, destinationView);
+		renderScene(sceneShader, rockNormal, camera.projectionMatrix() * destinationView);
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -126,6 +126,7 @@ int main() {
 
 	coolerAwesomePortal.portalMesh = ew::createCube(5);
 	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
+	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(0, glm::radians(180.f), 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
@@ -144,8 +145,8 @@ int main() {
 		//RENDER
 		camController.move(window, &camera, deltaTime);
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
-		renderPortalView(coolPortal, defaultLit);
-		renderPortalView(coolerAwesomePortal, defaultLit);
+		RenderPortalView(coolPortal, defaultLit);
+		RenderPortalView(coolerAwesomePortal, defaultLit);
 		renderScene(defaultLit, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
