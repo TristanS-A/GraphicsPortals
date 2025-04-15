@@ -37,8 +37,11 @@ float deltaTime;
 ew::Camera camera;
 ew::CameraController camController;
 
-ew::Model* pSuzanne;
-ew::Transform suzanneTransform;
+ew::Model* pCoolSuzanne;
+ew::Transform coolSuzanneTransform;
+
+ew::Model* pCoolerSnazzySuzanne;
+ew::Transform coolerSnazzySuzanneTransform;
 
 bool usingNormalMap = true;
 
@@ -89,7 +92,7 @@ Portal coolerAwesomePortal;
 GLint rockNormal;
 
 ew::Mesh theCoolSphere;
-void renderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
+void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
@@ -127,8 +130,13 @@ void renderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
 	shader.setMat4("camera_viewProj", view);
 	shader.setInt("_MainTex", 0);
-	shader.setMat4("_Model", suzanneTransform.modelMatrix());
-	pSuzanne->draw();
+	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
+	pCoolSuzanne->draw();
+
+	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
+	pCoolerSnazzySuzanne->draw();
 
 	
 }
@@ -151,7 +159,7 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		renderScene(sceneShader, portalShader, rockNormal, portal.projectionMatrix() * portal.viewMatrix());
+		RenderScene(sceneShader, portalShader, rockNormal, portal.projectionMatrix() * portal.viewMatrix());
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -170,7 +178,8 @@ int main() {
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 	ew::Shader portalView = ew::Shader("assets/Portal/PortalView.vert", "assets/Portal/PortalView.frag");
 
-	pSuzanne = new ew::Model("assets/suzanne.obj");
+	pCoolSuzanne = new ew::Model("assets/suzanne.obj");
+	pCoolerSnazzySuzanne = new ew::Model("assets/suzanne.obj");
 
 	theCoolSphere = ew::createSphere(3, 10);
 
@@ -189,7 +198,8 @@ int main() {
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
-	suzanneTransform.position = glm::vec3(10, 0, -7);
+	coolSuzanneTransform.position = glm::vec3(10, 0, -7);
+	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -203,7 +213,7 @@ int main() {
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
 		RenderPortalView(coolPortal, defaultLit, portalView);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
-		renderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
 		drawUI();
