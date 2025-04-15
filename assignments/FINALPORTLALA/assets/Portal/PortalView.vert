@@ -9,6 +9,7 @@ out vec3 out_Normal;
 out Surface 
 {
 	vec3 worldPos;
+	vec4 screenPos;
 	vec3 worldNormal;
 	vec2 texcoord;
 } vs_surface;
@@ -21,5 +22,6 @@ void main()
 	vs_surface.worldPos = vec3(_Model * vec4(v_In_Pos, 1.0));
 	vs_surface.worldNormal = transpose(inverse(mat3(_Model))) * v_In_Normal;
 	vs_surface.texcoord = in_texcoord;
-	gl_Position = camera_viewProj * _Model * vec4(v_In_Pos, 1.0);
+	vs_surface.screenPos = camera_viewProj * _Model * vec4(v_In_Pos, 1.0);
+	gl_Position = vs_surface.screenPos;
 }
