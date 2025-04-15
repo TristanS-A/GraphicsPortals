@@ -19,6 +19,7 @@
 #include <tsa/framebuffer.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
@@ -49,57 +50,108 @@ struct Portal
 		ew::Transform regularPortalTransform;
 		glm::vec3 normal;
 		tsa::FrameBuffer framebuffer;
+
+		//function here becasue tristan is bad cringe and smells like carrots
+
+		glm::mat4 const ObliqueClippingMat(glm::mat4& const viewMatrix, glm::mat4& const projectionMatrix, const ew::Transform& trans)
+		{
+			float d = glm::length(trans.position);
+
+			glm::vec3 newClipPlaneNormal = trans.rotation * glm::vec3(0.0, 0.0, -1.0);
+			
+			glm::vec4 newClipPlane(newClipPlaneNormal, d);
+
+			newClipPlane = glm::inverse(glm::transpose(viewMatrix)) * newClipPlane;
+			//newClipPlane = glm::inverse(glm::transpose(viewMat)) * newClipPlane;
+
+			if (newClipPlane.w > 0.0f)
+			{
+				return projectionMatrix;
+			}
+
+			// Far plane
+			glm::vec4 q = glm::inverse(projectionMatrix) * glm::vec4(glm::sign(newClipPlane.x), glm::sign(newClipPlane.y), 1.0f, 1.0f);
+
+			//scales new matrix by the angle so that it fits in the orginal frustum 
+			glm::vec4 c = newClipPlane * (2.0f / (glm::dot(newClipPlane, q)));
+
+			glm::mat4 newProjMat = projectionMatrix; 
+
+			//replace the clipping plane 
+			newProjMat = glm::row(newProjMat, 2, c - glm::row(newProjMat, 3));
+
+			return newProjMat;
+		}
 };
 
 Portal coolPortal;
 Portal coolerAwesomePortal;
 GLint rockNormal;
 
-void renderScene(ew::Shader& shader, GLuint tex, glm::mat4 view)
+ew::Mesh theCoolSphere;
+void renderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	glEnable(GL_DEPTH_TEST);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex);
+	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
 
 	//GFX Pass
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
 
-	shader.use();
+	portalShader.use();
 
-	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
-	shader.setMat4("camera_viewProj",view);
-	shader.setInt("_MainTex", 0);
+	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+	portalShader.setMat4("camera_viewProj", view);
+	portalShader.setInt("_MainTex", 0);
 
 	coolPortal.portalMesh.draw();
 	
-	shader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
+	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
+	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
 	coolerAwesomePortal.portalMesh.draw();
 	
-	glCullFace(GL_BACK);
 
+	//shader.setMat4("_Model", glm::translate(glm::vec3(10, 0, 0)));
+	//theCoolSphere.draw();
+
+
+	glCullFace(GL_BACK);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	shader.use();
+	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+	shader.setMat4("camera_viewProj", view);
+	shader.setInt("_MainTex", 0);
 	shader.setMat4("_Model", suzanneTransform.modelMatrix());
 	pSuzanne->draw();
+
+	
 }
 
-void RenderPortalView(Portal& p, ew::Shader& sceneShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
 {
 	//calcualte cam
-	ew::Camera portal;
+	ew::Camera portal = camera;
 
-	glm::mat4 destinationView =
+	/*glm::mat4 destinationView =
 		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
-			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());
+			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());*/
+
+	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
+	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
+	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
+	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		renderScene(sceneShader, rockNormal, camera.projectionMatrix() * destinationView);
+		renderScene(sceneShader, portalShader, rockNormal, portal.projectionMatrix() * portal.viewMatrix());
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -116,17 +168,21 @@ int main() {
 
 	ew::Shader lit_Shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
+	ew::Shader portalView = ew::Shader("assets/Portal/PortalView.vert", "assets/Portal/PortalView.frag");
 
 	pSuzanne = new ew::Model("assets/suzanne.obj");
 
-	coolPortal.portalMesh = ew::createCube(5);
+	theCoolSphere = ew::createSphere(3, 10);
+
+	coolPortal.portalMesh = ew::createPlane(5,5, 10);
 	coolPortal.regularPortalTransform.position = glm::vec3(0, 0, 0);
+	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), glm::radians(180.f), 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 
-	coolerAwesomePortal.portalMesh = ew::createCube(5);
+	coolerAwesomePortal.portalMesh = ew::createPlane(5, 5, 10);
 	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
-	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(0, glm::radians(180.f), 0);
+	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
@@ -145,9 +201,9 @@ int main() {
 		//RENDER
 		camController.move(window, &camera, deltaTime);
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
-		RenderPortalView(coolPortal, defaultLit);
-		RenderPortalView(coolerAwesomePortal, defaultLit);
-		renderScene(defaultLit, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderPortalView(coolPortal, defaultLit, portalView);
+		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
+		renderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
 		drawUI();
