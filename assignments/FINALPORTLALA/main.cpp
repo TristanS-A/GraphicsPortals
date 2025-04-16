@@ -20,6 +20,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
@@ -151,10 +152,21 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());*/
 
+	//Translates camera position and target in relation to linked portal. This only works for specific portal rotations
 	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
 	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
 	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
 	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
+
+	////Change to rotate the projection view (because of issues with target and pos being on oposite sides of the plane)
+	/*glm::quat roation = glm::vec3(glm::radians(-90.f), 0, 0);
+	glm::mat4 rotMatrix = glm::mat4_cast(roation);
+
+	glm::vec4 rotatedPosition = rotMatrix * glm::vec4(portal.position - p.linkedPortal->regularPortalTransform.position, 1);
+	glm::vec4 rotatedTarget = rotMatrix * glm::vec4(portal.target - p.linkedPortal->regularPortalTransform.position, 1);
+
+	portal.position = glm::vec3(rotatedPosition) + p.linkedPortal->regularPortalTransform.position;
+	portal.target = glm::vec3(rotatedTarget) + p.linkedPortal->regularPortalTransform.position;*/
 
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
@@ -198,7 +210,7 @@ int main() {
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
-	coolSuzanneTransform.position = glm::vec3(10, 0, -7);
+	coolSuzanneTransform.position = glm::vec3(10, -2, -7);
 	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
 
 	while (!glfwWindowShouldClose(window)) {
