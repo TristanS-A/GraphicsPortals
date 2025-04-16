@@ -52,6 +52,7 @@ struct Portal
 		Portal* linkedPortal;
 		ew::Mesh portalMesh;
 		ew::Transform regularPortalTransform;
+		glm::vec3 virtualCameraRotOffset = glm::vec3(glm::radians(180.f), glm::radians(0.f), 0.0);
 		glm::vec3 normal;
 		tsa::FrameBuffer framebuffer;
 
@@ -158,7 +159,17 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
 	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
 
-	////Change to rotate the projection view (because of issues with target and pos being on oposite sides of the plane)
+	//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
+	ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
+	linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + p.virtualCameraRotOffset);
+
+	//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
+	glm::mat4 destinationView =
+		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
+		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::inverse(linkedPTrans.modelMatrix());
+
+	////A reminder that late night quick maths are not always going to be scalable :(
 	/*glm::quat roation = glm::vec3(glm::radians(-90.f), 0, 0);
 	glm::mat4 rotMatrix = glm::mat4_cast(roation);
 
@@ -171,7 +182,7 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		RenderScene(sceneShader, portalShader, rockNormal, portal.projectionMatrix() * portal.viewMatrix());
+		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * destinationView);
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -203,14 +214,14 @@ int main() {
 
 	coolerAwesomePortal.portalMesh = ew::createPlane(5, 5, 10);
 	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
-	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), 0, 0);
+	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(0.f), 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
-	coolSuzanneTransform.position = glm::vec3(10, -2, -7);
+	coolSuzanneTransform.position = glm::vec3(10, -2, 0);
 	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
 
 	while (!glfwWindowShouldClose(window)) {
