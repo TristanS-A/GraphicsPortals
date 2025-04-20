@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <iostream>
 
 #include <ew/external/glad.h>
 
@@ -111,6 +112,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setInt("_MainTex", 0);
+	portalShader.setFloat("_Time", (float)glfwGetTime());
 
 	coolPortal.portalMesh.draw();
 	
@@ -132,6 +134,8 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setInt("_MainTex", 0);
 	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
 	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
+	
+	std::cout << (float)glfwGetTime() << std::endl;
 	pCoolSuzanne->draw();
 
 	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());

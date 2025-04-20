@@ -16,9 +16,10 @@ uniform float _Time;
 
 //noise -> https://discourse.threejs.org/t/help-with-portal-shader-border-from-shadertoy/56448
 
-float snoise(vec2 uv, float res)
+float snoise(vec3 uv, float res)
 {
-	const vec3 s = vec3(1e0, 1e2, 1e3);
+//maybe precalculate this?
+	const vec3 s = vec3(10, 1 * pow(10,2), 1 * pow(10,3));
 	
 	uv *= res;
 	
@@ -71,10 +72,10 @@ void main()
 
 	float pct = distance(fs_surface.texcoord, vec2(0.5));
 
-	float y = smoothstep(0.16,0.525,pct);
+	float y = smoothstep(0.16,0.525, pct);
 
 	//FragColor = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.2, 0, 0), 1.0); 
 
-	FragColor = vec4(pow(max(color,0.),3.)*0.15, pow(max(color,0.),2.)*0.4, color, y);
+	FragColor = vec4(pow(max(color,0.),3.)*0.15, pow(max(color,0.),2.)*0.4, color, 0);
 
 }
