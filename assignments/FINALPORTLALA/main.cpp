@@ -56,8 +56,6 @@ struct Portal
 		glm::vec3 normal;
 		tsa::FrameBuffer framebuffer;
 
-		//function here becasue tristan is bad cringe and smells like carrots
-
 		glm::mat4 const ObliqueClippingMat(glm::mat4& const viewMatrix, glm::mat4& const projectionMatrix, const ew::Transform& trans)
 		{
 			float d = glm::length(trans.position);
