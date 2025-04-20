@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <iostream>
 
 #include <ew/external/glad.h>
 
@@ -47,6 +46,7 @@ ew::Transform coolerSnazzySuzanneTransform;
 
 bool usingNormalMap = true;
 
+glm::vec2 colors = glm::vec2(0.4, 0.15);
 struct Portal 
 {
 	public:
@@ -95,6 +95,8 @@ GLint rockNormal;
 ew::Mesh theCoolSphere;
 void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
 {
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	glEnable(GL_DEPTH_TEST);
@@ -113,6 +115,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setInt("_MainTex", 0);
 	portalShader.setFloat("_Time", (float)glfwGetTime());
+	portalShader.setVec2("colors", colors);
 
 	coolPortal.portalMesh.draw();
 	
@@ -135,7 +138,6 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
 	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
 	
-	std::cout << (float)glfwGetTime() << std::endl;
 	pCoolSuzanne->draw();
 
 	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
@@ -260,6 +262,7 @@ void drawUI() {
 	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
+	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
 

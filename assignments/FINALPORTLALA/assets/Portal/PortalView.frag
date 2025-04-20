@@ -14,6 +14,8 @@ uniform sampler2D _MainTex;
 uniform vec2 resolution;
 uniform float _Time;
 
+uniform vec2 colors;
+
 //noise -> https://discourse.threejs.org/t/help-with-portal-shader-border-from-shadertoy/56448
 
 float snoise(vec3 uv, float res)
@@ -51,9 +53,17 @@ void main()
 	//portal effect code --> https://discourse.threejs.org/t/help-with-portal-shader-border-from-shadertoy/56448
 
 	//changes the UV points --> these points are not in the correct scale
-	vec2 p = -0.42 + 0.84 * fs_surface.texcoord;
 
+
+	vec2 p =  -0.42 + 0.84 * fs_surface.texcoord.xy;
+	p.x *= 1080/720;
+	
+	//smoosh all x positions
+	p.y *= 1.2;
+    p.x *= 1.5;
+    
 	float color = 3.0 - (3.0 * length(2.*p));
+	float testColor = color;
 
 	vec3 coord = vec3(atan(p.x,p.y)/6.2832 + 0.5, length(p) * .4, 0.5); 
 
@@ -74,8 +84,12 @@ void main()
 
 	float y = smoothstep(0.16,0.525, pct);
 
-	//FragColor = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.2, 0, 0), 1.0); 
+	vec4 view = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.2, 0, 0), 1.0); 
 
-	FragColor = vec4(pow(max(color,0.),3.)*0.15, pow(max(color,0.),2.)*0.4, color, 0);
+	vec4 outlineColor = vec4(pow(max(color,0.),3.)*colors.x, pow(max(color,0.),2.)*colors.y, color, y);
+	
+	vec3 mixColor = mix(view, outlineColor, outlineColor.r).xyz;
+	
+	gl_FragColor = vec4(mixColor, testColor.r);
 
 }
