@@ -16,10 +16,26 @@ out Surface
 uniform mat4 camera_viewProj;
 uniform mat4 _Model;
 
+uniform vec3 _CullPos;
+uniform vec3 _CullNormal;
+
 void main()
 {
 	vs_surface.worldPos = vec3(_Model * vec4(v_In_Pos, 1.0));
 	vs_surface.worldNormal = transpose(inverse(mat3(_Model))) * v_In_Normal;
 	vs_surface.texcoord = in_texcoord;
+
+	//discard vertices of behind plane normals
+
+	float projection = dot(vs_surface.worldPos, _CullNormal) / (length(_CullNormal) *  length(_CullNormal));
+
 	gl_Position = camera_viewProj * _Model * vec4(v_In_Pos, 1.0);
+
+	//clip if behind the plane
+	if(projection > 0)
+	{
+		//behind the projection 
+		gl_Position.w = 0;
+	}
+	
 }

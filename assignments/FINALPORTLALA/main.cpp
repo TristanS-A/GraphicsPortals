@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <iostream>
 
 #include <ew/external/glad.h>
 
@@ -133,6 +134,10 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 
 	shader.use();
 	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+
+	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
+
 	shader.setMat4("camera_viewProj", view);
 	shader.setInt("_MainTex", 0);
 	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
@@ -141,6 +146,10 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	pCoolSuzanne->draw();
 
 	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
+
+	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolPortal.normal);
+
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
 	pCoolerSnazzySuzanne->draw();
 
@@ -211,16 +220,20 @@ int main() {
 	theCoolSphere = ew::createSphere(3, 10);
 
 	coolPortal.portalMesh = ew::createPlane(5,5, 10);
-	coolPortal.regularPortalTransform.position = glm::vec3(0, 0, 0);
+	coolPortal.regularPortalTransform.position = glm::vec3(0, 1, 0);
 	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), glm::radians(180.f), 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+	coolPortal.normal = glm::vec3(0, 1, 0);
+	coolPortal.normal = coolPortal.regularPortalTransform.rotation * coolPortal.normal;
 
 	coolerAwesomePortal.portalMesh = ew::createPlane(5, 5, 10);
 	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
 	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(0.f), 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
+	coolerAwesomePortal.normal = glm::vec3(0, 1, 0);
+	coolerAwesomePortal.normal = coolerAwesomePortal.regularPortalTransform.rotation * coolerAwesomePortal.normal;
 
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
@@ -258,10 +271,12 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 	
-	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
+	ImGui::DragFloat3("coolerPortalMonkey",&coolSuzanneTransform.position.x);
+	ImGui::DragFloat3("AwsomePortalMonkey", &coolerSnazzySuzanneTransform.position.x);
 	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
