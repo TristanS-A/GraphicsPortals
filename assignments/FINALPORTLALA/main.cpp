@@ -33,17 +33,17 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 
-
-
 //Caching things
 ew::Camera camera;
 ew::CameraController camController;
 
 ew::Model* pCoolSuzanne;
 ew::Transform coolSuzanneTransform;
+ew::Transform coolSuzanneTransformDup;
 
 ew::Model* pCoolerSnazzySuzanne;
 ew::Transform coolerSnazzySuzanneTransform;
+ew::Transform coolerSnazzySuzanneTransformDup;
 
 bool usingNormalMap = true;
 
@@ -144,14 +144,28 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
 	
 	pCoolSuzanne->draw();
-
-	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
-
+	//draw dup
+	shader.setMat4("_Model", coolSuzanneTransformDup.modelMatrix());
 	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
 	shader.setVec3("_CullNormal", coolPortal.normal);
+	pCoolSuzanne->draw();
 
+	//draw other suzan
+	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
+	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolPortal.normal);
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
+
 	pCoolerSnazzySuzanne->draw();
+
+	//draw dup
+	shader.setMat4("_Model", coolerSnazzySuzanneTransformDup.modelMatrix());
+	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
+
+	pCoolerSnazzySuzanne->draw();
+
+	
 
 	
 }
@@ -224,6 +238,8 @@ int main() {
 	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), glm::radians(180.f), 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+
+	//set the normals for the object clipping
 	coolPortal.normal = glm::vec3(0, 1, 0);
 	coolPortal.normal = coolPortal.regularPortalTransform.rotation * coolPortal.normal;
 
@@ -232,6 +248,8 @@ int main() {
 	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(0.f), 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
+
+	//set the normals for object clipping
 	coolerAwesomePortal.normal = glm::vec3(0, 1, 0);
 	coolerAwesomePortal.normal = coolerAwesomePortal.regularPortalTransform.rotation * coolerAwesomePortal.normal;
 
@@ -239,7 +257,15 @@ int main() {
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
 	coolSuzanneTransform.position = glm::vec3(10, -2, 0);
+	coolSuzanneTransformDup.position = glm::vec3(0, 1, -2);
+
+
 	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
+	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 5, 0);
+	
+	//maybe try to get dynamic locations
+	coolerSnazzySuzanneTransformDup.rotation = glm::vec3(glm::radians(270.f), 0, 0);
+	coolSuzanneTransformDup.rotation = glm::vec3(glm::radians(90.f), 0, 0);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
