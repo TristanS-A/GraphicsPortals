@@ -94,6 +94,9 @@ Portal coolerAwesomePortal;
 GLint rockNormal;
 
 ew::Mesh theCoolSphere;
+
+float offset1 = 0;
+float offset2 = 0;
 void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_BLEND);
@@ -140,11 +143,13 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 
 	shader.setMat4("camera_viewProj", view);
 	shader.setInt("_MainTex", 0);
+
 	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
 	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
 	
 	pCoolSuzanne->draw();
 	//draw dup
+	//add the offset
 	shader.setMat4("_Model", coolSuzanneTransformDup.modelMatrix());
 	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
 	shader.setVec3("_CullNormal", coolPortal.normal);
@@ -164,10 +169,6 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
 
 	pCoolerSnazzySuzanne->draw();
-
-	
-
-	
 }
 
 void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
@@ -260,8 +261,8 @@ int main() {
 	coolSuzanneTransformDup.position = glm::vec3(0, 1, -2);
 
 
-	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
-	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 5, 0);
+	coolerSnazzySuzanneTransform.position = glm::vec3(0, 1.1, 7);
+	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 7, 0);
 	
 	//maybe try to get dynamic locations
 	coolerSnazzySuzanneTransformDup.rotation = glm::vec3(glm::radians(270.f), 0, 0);
@@ -301,8 +302,28 @@ void drawUI() {
 	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
-	ImGui::DragFloat3("coolerPortalMonkey",&coolSuzanneTransform.position.x);
-	ImGui::DragFloat3("AwsomePortalMonkey", &coolerSnazzySuzanneTransform.position.x);
+	if (ImGui::Button("coolerPortalMonkey UP"))
+	{
+		std::cout << "rah" << std::endl;
+		coolSuzanneTransform.position.y += 1;
+		coolSuzanneTransformDup.position.z += 1;
+	}
+	if (ImGui::Button("coolerPortalMonkey DOWN"))
+	{
+		std::cout << "rah" << std::endl;
+		coolSuzanneTransform.position.y -= 1;
+		coolSuzanneTransformDup.position.z -= 1;
+	}
+	if (ImGui::Button("AwsomePortalMonkey BACK"))
+	{
+		coolerSnazzySuzanneTransform.position.z -= 1;
+		coolerSnazzySuzanneTransformDup.position.y -= 1;
+	}
+	if (ImGui::Button("AwsomePortalMonkey FORWARD"))
+	{
+		coolerSnazzySuzanneTransform.position.z += 1;
+		coolerSnazzySuzanneTransformDup.position.y += 1;
+	}
 	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
