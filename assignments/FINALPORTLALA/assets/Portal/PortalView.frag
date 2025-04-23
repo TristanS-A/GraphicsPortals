@@ -90,6 +90,6 @@ void main()
 	
 	vec3 mixColor = mix(view, outlineColor, outlineColor.r).xyz;
 	
-	gl_FragColor = vec4(mixColor, testColor.r);
+	FragColor = vec4(mixColor, testColor.r);
 
 }

@@ -304,7 +304,6 @@ void drawUI() {
 
 	if (ImGui::Button("coolerPortalMonkey UP"))
 	{
-		std::cout << "rah" << std::endl;
 		coolSuzanneTransform.position.y += 1;
 		coolSuzanneTransformDup.position.z += 1;
 	}
