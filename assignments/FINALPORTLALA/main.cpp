@@ -46,7 +46,6 @@ ew::Model* pRecursiveSuzzane;
 ew::Transform recursiveSuzzaneTransform;
 
 bool usingNormalMap = true;
-bool currentPortal = 0;
 
 struct Portal 
 {
@@ -151,125 +150,55 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	
 }
 
-void DrawRecursivePortal(glm::mat4 const& viewMatrix, glm::mat4 const& projMat, int maxRecursion, int currentRecursion)
+void DrawRecursivePortal(Portal& p, ew::Shader sceneShader, ew::Shader portalShader, GLuint tex, int maxRecursion, int currentRecursion)
 {
 	// Enable stencil test
 	glEnable(GL_STENCIL_TEST);
 
 	// Disable color and depth drawing
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_FALSE);
+	glDisable(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
 
 	// Specifies what action to take when a stencil test fails, passes, and when the stencil and depth test pass respectively
 	// GL_INCR increases the stencil buffer value, GL_KEEP keeps the current value
 	glStencilOp(GL_INCR, GL_KEEP, GL_KEEP);
 
-	// Disable depth test
-	glDisable(GL_DEPTH_TEST);
-
 	// glStencilFunc enables and disables drawing on a per pixel basis, func affects both back and front
-	glStencilFunc(GL_NOTEQUAL, currentRecursion, 0xFF);
+	glStencilFunc(GL_NEVER, currentRecursion, 0xFF);
 
-	// Enables writing onto all stencil bits
-	glStencilMask(0xFF);
+	// Draw portal
+	p.portalMesh.draw();
 
-	// Draw portal into stencil buffer
-	//p.portalMesh.draw();
-
-	if (currentRecursion == maxRecursion)
-	{
-		// Enable color and depth drawing
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_TRUE);
-
-		// Clear depth buffer
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		// Enable stencil test
-		glEnable(GL_DEPTH_TEST);
-
-		// Disbale drawing to stencil buffer
-		glStencilMask(0);
-
-		// Only draw where the stencil's valie is equal to the current recursion + 1
-		glStencilFunc(GL_EQUAL, currentRecursion + 1, 0xFF);
-
-		return;
-	}
-	else
-	{
-		DrawRecursivePortal(camera.viewMatrix(), camera.projectionMatrix(), 5, currentRecursion + 1);
-	}
-
-	// Disable color and depth drawing
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_FALSE);
-
-	// Disable stencil test and drawing
-	glEnable(GL_STENCIL_TEST);
-	glStencilMask(0xFF);
-
-	// Make stencil fail when inside of inner portal
-	glStencilFunc(GL_NOTEQUAL, currentRecursion + 1, 0xFF);
-
-	// GL_DECR decreases the stencil buffer value, GL_KEEP keeps the current value
-	glStencilOp(GL_DECR, GL_KEEP, GL_KEEP);
-
-	// draw portal to stencil buffer
-
-
-
-
-
-	// Disable stecnil test
-	glDisable(GL_STENCIL_TEST);
+	// Disables writing to the stencil buffer
 	glStencilMask(0x00);
-
-	// Disable color writing
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-	// Enable the depth test and depth writing.
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_TRUE);
-
-	// Make it so we always write the data into the depth buffer
-	// This is essentially the same as stencil func but for the depth buffer
-	glDepthFunc(GL_ALWAYS);
-
-	// Clear depth buffer
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-
-	// Draw prtals to depth buffer
-
-
-
-
-
-
-	// Reset the depth buffer to default settings
-	glDepthFunc(GL_LESS);
-
-	// Enable stencil test and disable writing to stencil buffer
-	glEnable(GL_STENCIL_TEST);
-	glStencilMask(0x00);
-
-	// Draw at stencil >= currentRecursion
-	// To prevents drawing on the outside of this level
-	glStencilFunc(GL_LEQUAL, currentRecursion, 0);
 
 	// Enable color and depth drawing
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_TRUE);
 
-	// Draw scene
+	// Makes it so only pixels with a value that is greater than or equal 1 are drawn,
+	// 1 meaning inside the portal
+	glStencilOp(GL_LEQUAL, GL_KEEP, GL_KEEP);
 
+	// Draw with viewing matrix from oblique clipping equation
+	//p.ObliqueClippingMat(camera.viewMatrix(), camera.projectionMatrix(), p.regularPortalTransform);
+	RenderScene(sceneShader, portalShader, tex,
+		p.ObliqueClippingMat(camera.viewMatrix(), camera.projectionMatrix(), p.regularPortalTransform));
 
+	// Disable color
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
+	// Clear depth buffer
+	glClear(GL_DEPTH_BUFFER_BIT);
 
+	// Draw portal frame
+	p.portalMesh.draw();
+
+	// Enable color
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 
-void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader, int maxRecursion, int currentRecursion)
 {
 	//calcualte cam
 	ew::Camera portal = camera;
@@ -295,8 +224,6 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(linkedPTrans.modelMatrix());
 
-	DrawRecursivePortal(camera.viewMatrix(), camera.projectionMatrix(), 5, 0);
-
 	////A reminder that late night quick maths are not always going to be scalable :(
 	/*glm::quat roation = glm::vec3(glm::radians(-90.f), 0, 0);
 	glm::mat4 rotMatrix = glm::mat4_cast(roation);
@@ -306,6 +233,8 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 
 	portal.position = glm::vec3(rotatedPosition) + p.linkedPortal->regularPortalTransform.position;
 	portal.target = glm::vec3(rotatedTarget) + p.linkedPortal->regularPortalTransform.position;*/
+
+	//DrawRecursivePortal(p, sceneShader, portalShader, rockNormal, 5, 0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
@@ -376,12 +305,14 @@ int main() {
 		//RENDER
 		camController.move(window, &camera, deltaTime);
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
-		RenderPortalView(coolPortal, defaultLit, portalView);
-		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
-		RenderPortalView(recursivePortal1, defaultLit, portalView);
-		RenderPortalView(recursivePortal2, defaultLit, portalView);
+		RenderPortalView(coolPortal, defaultLit, portalView, 5, 0);
 		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
-
+		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, 5, 0);
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderPortalView(recursivePortal1, defaultLit, portalView, 5, 0);
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderPortalView(recursivePortal2, defaultLit, portalView, 5, 0);
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 		drawUI();
 
