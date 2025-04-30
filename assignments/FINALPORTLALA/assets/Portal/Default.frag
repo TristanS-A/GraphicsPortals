@@ -15,11 +15,16 @@ uniform vec3 _ColorOffset;
 uniform vec3 _CullPos;
 uniform vec3 _CullNormal;
 
+uniform float _ClipRange;
+
 void main()
 {
 	float projection = dot(fs_surface.worldPos, _CullNormal) / (length(_CullNormal) *  length(_CullNormal));
 
-	if(projection > 0)
+	//scale for distance
+	float dist = distance(_CullPos, fs_surface.worldPos);
+
+	if(projection > 0 && dist < _ClipRange)
 	{
 		//behind the projection 
 		discard;

@@ -46,6 +46,8 @@ ew::Transform coolerSnazzySuzanneTransform;
 ew::Transform coolerSnazzySuzanneTransformDup;
 
 bool usingNormalMap = true;
+float clipRange1 = 5.f;
+float clipRange2 = 10.f;
 
 glm::vec2 colors = glm::vec2(0.4, 0.15);
 struct Portal 
@@ -153,6 +155,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setMat4("_Model", coolSuzanneTransformDup.modelMatrix());
 	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
 	shader.setVec3("_CullNormal", coolPortal.normal);
+	shader.setFloat("_ClipRange", clipRange1);
 	pCoolSuzanne->draw();
 
 	//draw other suzan
@@ -160,6 +163,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
 	shader.setVec3("_CullNormal", coolPortal.normal);
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
+	
 
 	pCoolerSnazzySuzanne->draw();
 
@@ -167,6 +171,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setMat4("_Model", coolerSnazzySuzanneTransformDup.modelMatrix());
 	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
 	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
+	shader.setFloat("_ClipRange", clipRange2);
 
 	pCoolerSnazzySuzanne->draw();
 }
@@ -261,7 +266,7 @@ int main() {
 	coolSuzanneTransformDup.position = glm::vec3(0, 1, -2);
 
 
-	coolerSnazzySuzanneTransform.position = glm::vec3(0, 1.1, 7);
+	coolerSnazzySuzanneTransform.position = glm::vec3(0, 1, 7);
 	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 7, 0);
 	
 	//maybe try to get dynamic locations
@@ -309,7 +314,6 @@ void drawUI() {
 	}
 	if (ImGui::Button("coolerPortalMonkey DOWN"))
 	{
-		std::cout << "rah" << std::endl;
 		coolSuzanneTransform.position.y -= 1;
 		coolSuzanneTransformDup.position.z -= 1;
 	}
@@ -324,6 +328,8 @@ void drawUI() {
 		coolerSnazzySuzanneTransformDup.position.y += 1;
 	}
 	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
+	ImGui::SliderFloat("Portal 1 Clip Range", &clipRange1, 0.1, 20);
+	ImGui::SliderFloat("Portal w Clip Range", &clipRange2, 0.1, 20);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
 

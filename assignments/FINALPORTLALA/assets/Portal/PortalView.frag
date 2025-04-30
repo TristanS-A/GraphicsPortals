@@ -54,7 +54,6 @@ void main()
 
 	//changes the UV points --> these points are not in the correct scale
 
-
 	vec2 p =  -0.42 + 0.84 * fs_surface.texcoord.xy;
 	p.x *= 1080/720;
 	
@@ -62,6 +61,7 @@ void main()
 	p.y *= 1.2;
     p.x *= 1.5;
     
+	//creates the circle pattern
 	float color = 3.0 - (3.0 * length(2.*p));
 	float testColor = color;
 
@@ -90,6 +90,6 @@ void main()
 	
 	vec3 mixColor = mix(view, outlineColor, outlineColor.r).xyz;
 	
-	FragColor = vec4(mixColor, testColor.r);
+	FragColor = vec4(mixColor, testColor);
 
 }
