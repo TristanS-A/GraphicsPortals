@@ -23,6 +23,8 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <tuple>
+
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
 void drawUI();
@@ -54,6 +56,22 @@ float clipRange1 = 5.f;
 float clipRange2 = 10.f;
 
 glm::vec2 colors = glm::vec2(0.4, 0.15);
+
+typedef struct
+{
+
+	glm::vec3 highlight;
+	glm::vec3 shadow;
+
+}Palette;
+
+static int palette_index = 0;
+static std::vector<std::tuple<std::string, Palette>> palette{
+	{"Sunny Day", {{1.00f, 1.00f, 1.00f}, {0.60f, 0.54f, 0.52f}}},
+	{"Bright Night", {{0.47f, 0.58f, 0.68f}, {0.32f, 0.39f, 0.57f}}},
+	{"Rainy Day", {{0.62f, 0.69f, 0.67f},{0.50f, 0.55f, 0.50f}}},
+	{"Rainy Night", {{0.24f, 0.36f, 0.54f},{0.25f, 0.31f, 0.31f}}},
+};
 
 std::vector<GLuint> shdrTextures;
 struct Portal 
@@ -100,6 +118,7 @@ struct Portal
 Portal coolPortal;
 Portal coolerAwesomePortal;
 GLint rockNormal;
+GLuint zaToon;
 
 ew::Mesh theCoolSphere;
 
@@ -123,6 +142,10 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	glCullFace(GL_BACK);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
+	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE2);
+
+
 	SceneShader.use();
 
 	//island
@@ -130,6 +153,11 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	
 	SceneShader.setMat4("camera_viewProj", view);
 	SceneShader.setInt("_MainTex", 0);
+	SceneShader.setInt("zatoon", zaToon);
+	SceneShader.setVec3("_Pallet.highlight", std::get<Palette>(palette[palette_index]).highlight);
+	SceneShader.setVec3("_Pallet.shadow", std::get<Palette>(palette[palette_index]).shadow);
+
+
 	pIsland->draw(shdrTextures, SceneShader);
 
 	//first cool suzan
@@ -308,6 +336,7 @@ int main() {
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS07.png").c_str()));
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS06.png").c_str()));
 
+	zaToon = ew::loadTexture("ZAToon.png");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -366,6 +395,25 @@ void drawUI() {
 	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
 	ImGui::SliderFloat("Portal 1 Clip Range", &clipRange1, 0.1, 20);
 	ImGui::SliderFloat("Portal w Clip Range", &clipRange2, 0.1, 20);
+
+	if (ImGui::BeginCombo("Palette", std::get<std::string>(palette[palette_index]).c_str()))
+	{
+		for (auto n = 0; n < palette.size(); ++n)
+		{
+			auto is_selected = (std::get<0>(palette[palette_index]) == std::get<0>(palette[n]));
+			if (ImGui::Selectable(std::get<std::string>(palette[n]).c_str(), is_selected))
+			{
+				palette_index = n;
+			}
+			if (is_selected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::ColorEdit3("Highlight", &std::get<Palette>(palette[palette_index]).highlight[0]);
+	ImGui::ColorEdit3("Shadow", &std::get<Palette>(palette[palette_index]).shadow[0]);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
 
