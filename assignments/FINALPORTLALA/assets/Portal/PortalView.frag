@@ -20,5 +20,5 @@ void main()
 	//Map to 0-1
 	projectionCoords = (projectionCoords * 0.5) + 0.5;
 
-	FragColor = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.2, 0, 0), 1.0); 
+	FragColor = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.1, 0, 0), 1.0); 
 }
