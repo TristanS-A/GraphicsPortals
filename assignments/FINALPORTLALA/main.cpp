@@ -32,8 +32,6 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 
-
-
 //Caching things
 ew::Camera camera;
 ew::CameraController camController;
@@ -44,7 +42,11 @@ ew::Transform coolSuzanneTransform;
 ew::Model* pCoolerSnazzySuzanne;
 ew::Transform coolerSnazzySuzanneTransform;
 
+ew::Model* pRecursiveSuzzane;
+ew::Transform recursiveSuzzaneTransform;
+
 bool usingNormalMap = true;
+bool currentPortal = 0;
 
 struct Portal 
 {
@@ -91,6 +93,8 @@ struct Portal
 
 Portal coolPortal;
 Portal coolerAwesomePortal;
+Portal recursivePortal1;
+Portal recursivePortal2;
 GLint rockNormal;
 
 ew::Mesh theCoolSphere;
@@ -103,27 +107,28 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
 
-	//GFX Pass
+	// GFX Pass
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
-
 
 	portalShader.use();
 
 	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setInt("_MainTex", 0);
-
 	coolPortal.portalMesh.draw();
 	
 	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
 	coolerAwesomePortal.portalMesh.draw();
-	
 
-	//shader.setMat4("_Model", glm::translate(glm::vec3(10, 0, 0)));
-	//theCoolSphere.draw();
+	glBindTexture(GL_TEXTURE_2D, recursivePortal1.framebuffer.colorBuffer[0]);
+	portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
+	recursivePortal1.portalMesh.draw();
 
+	glBindTexture(GL_TEXTURE_2D, recursivePortal2.framebuffer.colorBuffer[0]);
+	portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
+	recursivePortal2.portalMesh.draw();
 
 	glCullFace(GL_BACK);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -140,7 +145,128 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
 	pCoolerSnazzySuzanne->draw();
 
+	shader.setMat4("_Model", recursiveSuzzaneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(0, 1, 0));
+	pRecursiveSuzzane->draw();
 	
+}
+
+void DrawRecursivePortal(glm::mat4 const& viewMatrix, glm::mat4 const& projMat, int maxRecursion, int currentRecursion)
+{
+	// Enable stencil test
+	glEnable(GL_STENCIL_TEST);
+
+	// Disable color and depth drawing
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_FALSE);
+
+	// Specifies what action to take when a stencil test fails, passes, and when the stencil and depth test pass respectively
+	// GL_INCR increases the stencil buffer value, GL_KEEP keeps the current value
+	glStencilOp(GL_INCR, GL_KEEP, GL_KEEP);
+
+	// Disable depth test
+	glDisable(GL_DEPTH_TEST);
+
+	// glStencilFunc enables and disables drawing on a per pixel basis, func affects both back and front
+	glStencilFunc(GL_NOTEQUAL, currentRecursion, 0xFF);
+
+	// Enables writing onto all stencil bits
+	glStencilMask(0xFF);
+
+	// Draw portal into stencil buffer
+	//p.portalMesh.draw();
+
+	if (currentRecursion == maxRecursion)
+	{
+		// Enable color and depth drawing
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthMask(GL_TRUE);
+
+		// Clear depth buffer
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		// Enable stencil test
+		glEnable(GL_DEPTH_TEST);
+
+		// Disbale drawing to stencil buffer
+		glStencilMask(0);
+
+		// Only draw where the stencil's valie is equal to the current recursion + 1
+		glStencilFunc(GL_EQUAL, currentRecursion + 1, 0xFF);
+
+		return;
+	}
+	else
+	{
+		DrawRecursivePortal(camera.viewMatrix(), camera.projectionMatrix(), 5, currentRecursion + 1);
+	}
+
+	// Disable color and depth drawing
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_FALSE);
+
+	// Disable stencil test and drawing
+	glEnable(GL_STENCIL_TEST);
+	glStencilMask(0xFF);
+
+	// Make stencil fail when inside of inner portal
+	glStencilFunc(GL_NOTEQUAL, currentRecursion + 1, 0xFF);
+
+	// GL_DECR decreases the stencil buffer value, GL_KEEP keeps the current value
+	glStencilOp(GL_DECR, GL_KEEP, GL_KEEP);
+
+	// draw portal to stencil buffer
+
+
+
+
+
+	// Disable stecnil test
+	glDisable(GL_STENCIL_TEST);
+	glStencilMask(0x00);
+
+	// Disable color writing
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	// Enable the depth test and depth writing.
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+
+	// Make it so we always write the data into the depth buffer
+	// This is essentially the same as stencil func but for the depth buffer
+	glDepthFunc(GL_ALWAYS);
+
+	// Clear depth buffer
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+
+	// Draw prtals to depth buffer
+
+
+
+
+
+
+	// Reset the depth buffer to default settings
+	glDepthFunc(GL_LESS);
+
+	// Enable stencil test and disable writing to stencil buffer
+	glEnable(GL_STENCIL_TEST);
+	glStencilMask(0x00);
+
+	// Draw at stencil >= currentRecursion
+	// To prevents drawing on the outside of this level
+	glStencilFunc(GL_LEQUAL, currentRecursion, 0);
+
+	// Enable color and depth drawing
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDepthMask(GL_TRUE);
+
+	// Draw scene
+
+
+
+
 }
 
 void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
@@ -153,7 +279,7 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());*/
 
-	//Translates camera position and target in relation to linked portal. This only works for specific portal rotations
+	// Translates camera position and target in relation to linked portal. This only works for specific portal rotations
 	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
 	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
 	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
@@ -168,6 +294,8 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(linkedPTrans.modelMatrix());
+
+	DrawRecursivePortal(camera.viewMatrix(), camera.projectionMatrix(), 5, 0);
 
 	////A reminder that late night quick maths are not always going to be scalable :(
 	/*glm::quat roation = glm::vec3(glm::radians(-90.f), 0, 0);
@@ -203,6 +331,7 @@ int main() {
 
 	pCoolSuzanne = new ew::Model("assets/suzanne.obj");
 	pCoolerSnazzySuzanne = new ew::Model("assets/suzanne.obj");
+	pRecursiveSuzzane = new ew::Model("assets/suzanne.obj");
 
 	theCoolSphere = ew::createSphere(3, 10);
 
@@ -218,11 +347,24 @@ int main() {
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
+	recursivePortal1.portalMesh = ew::createPlane(5, 5, 10);
+	recursivePortal1.regularPortalTransform.position = glm::vec3(-10, 20, -3);
+	recursivePortal1.regularPortalTransform.rotation = glm::vec3(glm::radians(90.0f), 0, 0);
+	recursivePortal1.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+	recursivePortal1.linkedPortal = &recursivePortal2;
+
+	recursivePortal2.portalMesh = ew::createPlane(5, 5, 10);
+	recursivePortal2.regularPortalTransform.position = glm::vec3(-10, 20, -9);
+	recursivePortal2.regularPortalTransform.rotation = glm::vec3(glm::radians(270.0f), 0, 0);
+	recursivePortal2.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+	recursivePortal2.linkedPortal = &recursivePortal1;
+
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
 	coolSuzanneTransform.position = glm::vec3(10, -2, 0);
 	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
+	recursiveSuzzaneTransform.position = glm::vec3(-10, 20, -6);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -236,6 +378,8 @@ int main() {
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
 		RenderPortalView(coolPortal, defaultLit, portalView);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
+		RenderPortalView(recursivePortal1, defaultLit, portalView);
+		RenderPortalView(recursivePortal2, defaultLit, portalView);
 		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
@@ -254,9 +398,12 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 	
-	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
