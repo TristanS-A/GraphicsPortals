@@ -45,11 +45,17 @@ ew::Model* pCoolerSnazzySuzanne;
 ew::Transform coolerSnazzySuzanneTransform;
 ew::Transform coolerSnazzySuzanneTransformDup;
 
+//island
+ew::Model* pIsland; 
+ew::Transform islandTrans;
+
 bool usingNormalMap = true;
 float clipRange1 = 5.f;
 float clipRange2 = 10.f;
 
 glm::vec2 colors = glm::vec2(0.4, 0.15);
+
+std::vector<GLuint> shdrTextures;
 struct Portal 
 {
 	public:
@@ -99,45 +105,36 @@ ew::Mesh theCoolSphere;
 
 float offset1 = 0;
 float offset2 = 0;
-void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
+void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneShader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
+	
 	glEnable(GL_DEPTH_TEST);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
 
 	//GFX Pass
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
-
-	portalShader.use();
-
-	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
-	portalShader.setMat4("camera_viewProj", view);
-	portalShader.setInt("_MainTex", 0);
-	portalShader.setFloat("_Time", (float)glfwGetTime());
-	portalShader.setVec2("colors", colors);
-
-	coolPortal.portalMesh.draw();
-	
-	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
-	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
-	coolerAwesomePortal.portalMesh.draw();
-	
-
 	//shader.setMat4("_Model", glm::translate(glm::vec3(10, 0, 0)));
 	//theCoolSphere.draw();
-
 
 	glCullFace(GL_BACK);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
+	SceneShader.use();
+
+	//island
+	SceneShader.setMat4("_Model", islandTrans.modelMatrix());
+	
+	SceneShader.setMat4("camera_viewProj", view);
+	SceneShader.setInt("_MainTex", 0);
+	pIsland->draw(shdrTextures, SceneShader);
+
+	//first cool suzan
 	shader.use();
+
 	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
 
 	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
@@ -164,7 +161,6 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_CullNormal", coolPortal.normal);
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
 	
-
 	pCoolerSnazzySuzanne->draw();
 
 	//draw dup
@@ -174,9 +170,29 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setFloat("_ClipRange", clipRange2);
 
 	pCoolerSnazzySuzanne->draw();
+
+	//draw portals :3
+	glCullFace(GL_FRONT);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
+	portalShader.use();
+
+	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+	portalShader.setMat4("camera_viewProj", view);
+	portalShader.setInt("_MainTex", 0);
+	portalShader.setFloat("_Time", (float)glfwGetTime());
+	portalShader.setVec2("colors", colors);
+
+	coolPortal.portalMesh.draw();
+
+	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
+	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
+	coolerAwesomePortal.portalMesh.draw();
+
 }
 
-void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader, ew::Shader SceneShader)
 {
 	//calcualte cam
 	ew::Camera portal = camera;
@@ -215,7 +231,7 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * destinationView);
+		RenderScene(sceneShader, portalShader,SceneShader, rockNormal, camera.projectionMatrix() * destinationView);
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -233,6 +249,7 @@ int main() {
 	ew::Shader lit_Shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 	ew::Shader portalView = ew::Shader("assets/Portal/PortalView.vert", "assets/Portal/PortalView.frag");
+	ew::Shader SceneShader = ew::Shader("assets/SceneShader.vert", "assets/SceneShader.frag");
 
 	pCoolSuzanne = new ew::Model("assets/suzanne.obj");
 	pCoolerSnazzySuzanne = new ew::Model("assets/suzanne.obj");
@@ -273,6 +290,25 @@ int main() {
 	coolerSnazzySuzanneTransformDup.rotation = glm::vec3(glm::radians(270.f), 0, 0);
 	coolSuzanneTransformDup.rotation = glm::vec3(glm::radians(90.f), 0, 0);
 
+	//draw island
+	pIsland = new ew::Model("assets/island/Island.obj");
+
+	islandTrans.position = glm::vec3(0,0,-200);
+	islandTrans.scale = glm::vec3(0.01);
+
+	//load textures
+	std::string path = "assets/";
+
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS00.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsMM03.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsMM02.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS01.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS05.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS04.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS07.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS06.png").c_str()));
+
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
@@ -283,9 +319,9 @@ int main() {
 		//RENDER
 		camController.move(window, &camera, deltaTime);
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
-		RenderPortalView(coolPortal, defaultLit, portalView);
-		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
-		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
+		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
+		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
 		drawUI();
