@@ -19,7 +19,8 @@ uniform float _ClipRange;
 
 void main()
 {
-	float projection = dot(fs_surface.worldPos, _CullNormal) / (length(_CullNormal) *  length(_CullNormal));
+	//float projection = dot(fs_surface.worldPos, _CullNormal) / (length(_CullNormal) * length(_CullNormal));
+	float projection = dot(fs_surface.worldPos - _CullPos, _CullNormal);
 
 	//scale for distance
 	float dist = distance(_CullPos, fs_surface.worldPos);

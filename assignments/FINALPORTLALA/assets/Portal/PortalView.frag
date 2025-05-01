@@ -75,10 +75,12 @@ void main()
 		color += (0.4 / power) * snoise(coord + vec3(0.,-_Time*.05, _Time*.01), power*16.);
 	}
 
+	float inside = 1 - step(0.42, length(p));
+
 	//invert color
 	color = 1 - color;
 	color *= 2.7; 
-	color *= smoothstep(0.43, 0.4, length(p));
+	color *= inside;
 
 	float pct = distance(fs_surface.texcoord, vec2(0.5));
 
@@ -90,5 +92,5 @@ void main()
 	
 	vec3 mixColor = mix(view, outlineColor, outlineColor.r).xyz;
 	
-	FragColor = vec4(mixColor, testColor);
+	FragColor = vec4(mixColor, inside);
 }

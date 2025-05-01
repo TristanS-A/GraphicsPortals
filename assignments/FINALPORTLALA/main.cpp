@@ -197,13 +197,13 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	coolerAwesomePortal.portalMesh.draw();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, recursivePortal1.framebuffer.colorBuffer[0]);
+	glBindTexture(GL_TEXTURE_2D, recursivePortal1.theStupidFramebuffer.colorBuffer[0]);
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
 	recursivePortal1.portalMesh.draw();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, recursivePortal2.framebuffer.colorBuffer[0]);
+	glBindTexture(GL_TEXTURE_2D, recursivePortal2.theStupidFramebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
 	recursivePortal2.portalMesh.draw();
 }
@@ -225,6 +225,11 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 	{
 		//bind the portal frame buffer then draw the scene with color attachemnt
 		glBindFramebuffer(GL_FRAMEBUFFER, portalToRender.framebuffer.fbo);
+
+		// GFX Pass
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
 		RenderScene(sceneShader, portalShader, SceneShader, rockNormal, projMat * destinationView);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -245,6 +250,11 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, portalToRender.framebuffer.fbo);
+
+	// GFX Pass
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
 	RenderScene(sceneShader, portalShader, SceneShader, rockNormal, projMat * destinationView);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -324,7 +334,7 @@ int main() {
 	theCoolSphere = ew::createSphere(3, 10);
 
 	coolPortal.portalMesh = ew::createPlane(5, 5, 10);
-	coolPortal.regularPortalTransform.position = glm::vec3(0, 0, 0);
+	coolPortal.regularPortalTransform.position = glm::vec3(0, 10, -40);
   
 	//coolPortal.portalMesh = ew::createPlane(5,5, 10);
 	//coolPortal.regularPortalTransform.position = glm::vec3(0, 1, 0);
@@ -338,7 +348,7 @@ int main() {
 	coolPortal.normal = coolPortal.regularPortalTransform.rotation * coolPortal.normal;
 
 	coolerAwesomePortal.portalMesh = ew::createPlane(5, 5, 10);
-	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
+	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 10, -40);
 	coolerAwesomePortal.regularPortalTransform.rotation = glm::vec3(glm::radians(0.f), 0, 0);
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
@@ -364,12 +374,13 @@ int main() {
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
-	coolSuzanneTransform.position = glm::vec3(10, -2, 0);
-	coolSuzanneTransformDup.position = glm::vec3(0, 1, -2);
+	coolSuzanneTransform.position = glm::vec3(10, 7, -40);
+	coolSuzanneTransformDup.position = glm::vec3(0, 10, -43);
 
-	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
+	coolerSnazzySuzanneTransform.position = glm::vec3(0, 10, -33);
+	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 17, -40);
+
 	recursiveSuzzaneTransform.position = glm::vec3(-10, 20, -6);
-	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 7, 0);
   
 	portals[0] = recursivePortal1;
 	portals[1] = recursivePortal2;
