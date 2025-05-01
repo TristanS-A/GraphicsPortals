@@ -84,7 +84,7 @@ void main()
 
 	float y = smoothstep(0.16,0.525, pct);
 
-	vec4 view = vec4(texture(_MainTex, projectionCoords.xy).rgb + vec3(0.2, 0, 0), 1.0); 
+	vec4 view = vec4(texture(_MainTex, projectionCoords.xy).rgb, 1.0); 
 
 	vec4 outlineColor = vec4(pow(max(color,0.),3.)*colors.x, pow(max(color,0.),2.)*colors.y, color, y);
 	

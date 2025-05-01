@@ -88,33 +88,6 @@ public:
 	glm::vec3 normal;
 	tsa::FrameBuffer framebuffer;
 	tsa::FrameBuffer theStupidFramebuffer;
-
-	//function here becasue tristan is bad cringe and smells like carrots
-  glm::mat4 const ObliqueClippingMat(glm::mat4& const viewMatrix, glm::mat4& const projectionMatrix, const ew::Transform& trans)
-  {
-    float d = glm::length(trans.position);
-
-		newClipPlane = glm::inverse(glm::transpose(viewMatrix)) * newClipPlane;
-		//newClipPlane = glm::inverse(glm::transpose(viewMat)) * newClipPlane;
-
-		if (newClipPlane.w > 0.0f)
-		{
-			return projectionMatrix;
-		}
-
-		// Far plane
-		glm::vec4 q = glm::inverse(projectionMatrix) * glm::vec4(glm::sign(newClipPlane.x), glm::sign(newClipPlane.y), 1.0f, 1.0f);
-
-		//scales new matrix by the angle so that it fits in the orginal frustum 
-		glm::vec4 c = newClipPlane * (2.0f / (glm::dot(newClipPlane, q)));
-
-		glm::mat4 newProjMat = projectionMatrix;
-
-		//replace the clipping plane 
-		newProjMat = glm::row(newProjMat, 2, c - glm::row(newProjMat, 3));
-
-		return newProjMat;
-	}
 };
 
 Portal coolPortal;
@@ -197,6 +170,13 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 
 	pCoolerSnazzySuzanne->draw();
 
+	shader.setMat4("_Model", recursiveSuzzaneTransform.modelMatrix());
+	shader.setVec3("_CullPos", recursivePortal1.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", recursivePortal1.normal);
+	shader.setFloat("_ClipRange", clipRange2);
+
+	pRecursiveSuzzane->draw();
+
 	//draw portal frame?
 	glCullFace(GL_FRONT);
 
@@ -228,7 +208,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	recursivePortal2.portalMesh.draw();
 }
 
-void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::mat4& const projMat, int maxRecursion, int currentRecursion, ew::Shader& sceneShader, ew::Shader& portalShader, int t)
+void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::mat4& const projMat, int maxRecursion, int currentRecursion, ew::Shader& sceneShader, ew::Shader& portalShader, ew::Shader& SceneShader)
 {
 	//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
 	ew::Transform linkedPTrans = portalToRender.linkedPortal->regularPortalTransform;
@@ -237,7 +217,7 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 	//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
 	glm::mat4 destinationView =
 		viewMat * portalToRender.regularPortalTransform.modelMatrix()
-		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
+		* glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::vec3(0.0f, 1.0f, 0.0f))
 		* glm::inverse(linkedPTrans.modelMatrix());
 
 	// Base case, render inside of inner portal
@@ -245,7 +225,7 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 	{
 		//bind the portal frame buffer then draw the scene with color attachemnt
 		glBindFramebuffer(GL_FRAMEBUFFER, portalToRender.framebuffer.fbo);
-		RenderScene(sceneShader, portalShader, rockNormal, projMat * destinationView);
+		RenderScene(sceneShader, portalShader, SceneShader, rockNormal, projMat * destinationView);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, portalToRender.framebuffer.fbo);
@@ -261,11 +241,11 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 	{
 		// Recursion case
 		// Pass our new view matrix and the clipped projection matrix (see above)
-		DrawRecursivePortals(portalToRender, destinationView, projMat, maxRecursion, currentRecursion + 1, sceneShader, portalShader, t);
+		DrawRecursivePortals(portalToRender, destinationView, projMat, maxRecursion, currentRecursion + 1, sceneShader, portalShader, SceneShader);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, portalToRender.framebuffer.fbo);
-	RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * destinationView);
+	RenderScene(sceneShader, portalShader, SceneShader, rockNormal, projMat * destinationView);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -367,16 +347,16 @@ int main() {
 	coolerAwesomePortal.normal = glm::vec3(0, 1, 0);
 	coolerAwesomePortal.normal = coolerAwesomePortal.regularPortalTransform.rotation * coolerAwesomePortal.normal;
   
-  recursivePortal1.portalMesh = ew::createPlane(5, 5, 10);
-	recursivePortal1.regularPortalTransform.position = glm::vec3(-10, 20, -3);
-	recursivePortal1.regularPortalTransform.rotation = glm::vec3(glm::radians(90.0f), 0, 0);
+	recursivePortal1.portalMesh = ew::createPlane(5, 5, 10);
+	recursivePortal1.regularPortalTransform.position = glm::vec3(-5, 20, -9);
+	recursivePortal1.regularPortalTransform.rotation = glm::vec3(glm::radians(90.0f), glm::radians(90.0f), 0);
 	recursivePortal1.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal1.theStupidFramebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal1.linkedPortal = &recursivePortal2;
 
 	recursivePortal2.portalMesh = ew::createPlane(5, 5, 10);
 	recursivePortal2.regularPortalTransform.position = glm::vec3(-10, 20, -9);
-	recursivePortal2.regularPortalTransform.rotation = glm::vec3(glm::radians(200.0f), 0, 0);
+	recursivePortal2.regularPortalTransform.rotation = glm::vec3(glm::radians(270.0f), glm::radians(90.0f), 0);
 	recursivePortal2.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal2.theStupidFramebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal2.linkedPortal = &recursivePortal1;
@@ -391,7 +371,7 @@ int main() {
 	recursiveSuzzaneTransform.position = glm::vec3(-10, 20, -6);
 	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 7, 0);
   
-  portals[0] = recursivePortal1;
+	portals[0] = recursivePortal1;
 	portals[1] = recursivePortal2;
 	portals[2] = coolPortal;
 	portals[3] = coolerAwesomePortal;
@@ -453,11 +433,10 @@ int main() {
 
 		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
-		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 		//DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
-		DrawRecursivePortals(recursivePortal1, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, 1);
-		DrawRecursivePortals(recursivePortal2, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, 0);
+		DrawRecursivePortals(recursivePortal1, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, SceneShader);
+		DrawRecursivePortals(recursivePortal2, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, SceneShader);
 	
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
