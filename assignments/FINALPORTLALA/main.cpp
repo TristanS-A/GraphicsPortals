@@ -106,26 +106,10 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 
-	glCullFace(GL_FRONT);
-
-	glActiveTexture(GL_TEXTURE0);
-
-	portalShader.use();
-
-	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
-	portalShader.setMat4("camera_viewProj", view);
-	portalShader.setInt("_MainTex", 0);
-	coolPortal.portalMesh.draw();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
-	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
-	coolerAwesomePortal.portalMesh.draw();
-
-	
 	glCullFace(GL_BACK);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
+	//draw suzan
 	shader.use();
 	shader.setMat4("camera_viewProj", view);
 	shader.setInt("_MainTex", 0);
@@ -141,17 +125,102 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	shader.setVec3("_ColorOffset", glm::vec3(0, 1, 0));
 	pRecursiveSuzzane->draw();
 
-	glCullFace(GL_FRONT);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, recursivePortal1.theStupidFramebuffer.colorBuffer[0]);
-	shader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
-	recursivePortal1.portalMesh.draw();
+
+	//draw portal frame?
+	if (true)
+	{
+		glCullFace(GL_FRONT);
+		glActiveTexture(GL_TEXTURE0);
+
+		portalShader.use();
+
+		portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+		portalShader.setMat4("camera_viewProj", view);
+		portalShader.setInt("_MainTex", 0);
+		coolPortal.portalMesh.draw();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
+		portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
+		coolerAwesomePortal.portalMesh.draw();
+
+		glCullFace(GL_FRONT);
+
+		portalShader.use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, recursivePortal1.framebuffer.colorBuffer[0]);
+		portalShader.setMat4("camera_viewProj", view);
+		portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
+		recursivePortal1.portalMesh.draw();
 
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, recursivePortal2.theStupidFramebuffer.colorBuffer[0]);
-	shader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
-	recursivePortal2.portalMesh.draw();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, recursivePortal2.framebuffer.colorBuffer[0]);
+		portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
+		recursivePortal2.portalMesh.draw();
+	}
+	
+
+}
+void RenderScene2(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view, bool drawPortal)
+{
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+
+	glCullFace(GL_BACK);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	//draw suzan
+	shader.use();
+	shader.setMat4("camera_viewProj", view);
+	shader.setInt("_MainTex", 0);
+	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
+	pCoolSuzanne->draw();
+
+	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
+	pCoolerSnazzySuzanne->draw();
+
+	shader.setMat4("_Model", recursiveSuzzaneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(0, 1, 0));
+	pRecursiveSuzzane->draw();
+
+
+	//draw portal frame?
+	if (drawPortal)
+	{
+		glCullFace(GL_FRONT);
+		glActiveTexture(GL_TEXTURE0);
+
+		portalShader.use();
+
+		portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+		portalShader.setMat4("camera_viewProj", view);
+		portalShader.setInt("_MainTex", 0);
+		coolPortal.portalMesh.draw();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.theStupidFramebuffer.colorBuffer[0]);
+		portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
+		coolerAwesomePortal.portalMesh.draw();
+
+		glCullFace(GL_FRONT);
+
+		portalShader.use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, recursivePortal1.theStupidFramebuffer.colorBuffer[0]);
+		portalShader.setMat4("camera_viewProj", view);
+		portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
+		recursivePortal1.portalMesh.draw();
+
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, recursivePortal2.theStupidFramebuffer.colorBuffer[0]);
+		portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
+		recursivePortal2.portalMesh.draw();
+	}
+
 
 }
 
@@ -167,7 +236,7 @@ void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, in
 
 		//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
 		glm::mat4 destinationView =
-			camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
+			viewMat * p.regularPortalTransform.modelMatrix()
 			* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(linkedPTrans.modelMatrix());
 
@@ -196,7 +265,7 @@ void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, in
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
-		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * destinationView);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -211,21 +280,14 @@ void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, in
 	}
 }
 
-void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader, bool thing)
 {
 	//calcualte cam
-	ew::Camera portal = camera;
 
 	/*glm::mat4 destinationView =
 		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
 		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
 			* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());*/
-
-			// Translates camera position and target in relation to linked portal. This only works for specific portal rotations
-	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
-	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
-	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
-	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
 
 	//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
 	ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
@@ -344,13 +406,26 @@ int main() {
 			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 		}
 
-		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
+		//draw all this to a frame buffer
+		//RenderPortalView(recursivePortal1, defaultLit, portalView, false);
+		//RenderPortalView(recursivePortal2, defaultLit, portalView, false);
 
-		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		//RenderPortalView(recursivePortal1, defaultLit, portalView, true);
+		//RenderPortalView(recursivePortal2, defaultLit, portalView, true);
 
+		//RenderPortalView(recursivePortal1, defaultLit, portalView, true);
+		//RenderPortalView(recursivePortal2, defaultLit, portalView, true);
+
+		//RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix(), true);
+		//end
+
+		//DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
+		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 3, 0, defaultLit, portalView);
 	
-
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	
 
 		drawUI();
 
@@ -373,7 +448,7 @@ void drawUI() {
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();

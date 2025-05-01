@@ -14,5 +14,5 @@ uniform vec3 _ColorOffset;
 
 void main()
 {
-	FragColor = vec4(texture(_MainTex, fs_surface.texcoord).rgb, 1.0); 
+	FragColor = vec4(texture(_MainTex, fs_surface.texcoord).rgb + _ColorOffset, 1.0); 
 }
