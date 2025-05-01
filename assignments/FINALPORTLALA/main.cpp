@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <iostream>
 
 #include <ew/external/glad.h>
 
@@ -22,6 +23,8 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <tuple>
+
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 GLFWwindow* initWindow(const char* title, int width, int height);
 void drawUI();
@@ -32,20 +35,45 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 
-
-
 //Caching things
 ew::Camera camera;
 ew::CameraController camController;
 
 ew::Model* pCoolSuzanne;
 ew::Transform coolSuzanneTransform;
+ew::Transform coolSuzanneTransformDup;
 
 ew::Model* pCoolerSnazzySuzanne;
 ew::Transform coolerSnazzySuzanneTransform;
+ew::Transform coolerSnazzySuzanneTransformDup;
+
+//island
+ew::Model* pIsland; 
+ew::Transform islandTrans;
 
 bool usingNormalMap = true;
+float clipRange1 = 5.f;
+float clipRange2 = 10.f;
 
+glm::vec2 colors = glm::vec2(0.4, 0.15);
+
+typedef struct
+{
+
+	glm::vec3 highlight;
+	glm::vec3 shadow;
+
+}Palette;
+
+static int palette_index = 0;
+static std::vector<std::tuple<std::string, Palette>> palette{
+	{"Sunny Day", {{1.00f, 1.00f, 1.00f}, {0.60f, 0.54f, 0.52f}}},
+	{"Bright Night", {{0.47f, 0.58f, 0.68f}, {0.32f, 0.39f, 0.57f}}},
+	{"Rainy Day", {{0.62f, 0.69f, 0.67f},{0.50f, 0.55f, 0.50f}}},
+	{"Rainy Night", {{0.24f, 0.36f, 0.54f},{0.25f, 0.31f, 0.31f}}},
+};
+
+std::vector<GLuint> shdrTextures;
 struct Portal 
 {
 	public:
@@ -55,8 +83,6 @@ struct Portal
 		glm::vec3 virtualCameraRotOffset = glm::vec3(glm::radians(180.f), glm::radians(0.f), 0.0);
 		glm::vec3 normal;
 		tsa::FrameBuffer framebuffer;
-
-		//function here becasue tristan is bad cringe and smells like carrots
 
 		glm::mat4 const ObliqueClippingMat(glm::mat4& const viewMatrix, glm::mat4& const projectionMatrix, const ew::Transform& trans)
 		{
@@ -92,58 +118,109 @@ struct Portal
 Portal coolPortal;
 Portal coolerAwesomePortal;
 GLint rockNormal;
+GLuint zaToon;
 
 ew::Mesh theCoolSphere;
-void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::mat4 view)
-{
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glEnable(GL_DEPTH_TEST);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
+float offset1 = 0;
+float offset2 = 0;
+void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneShader, GLuint tex, glm::mat4 view)
+{
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_CULL_FACE);
+	
+	glEnable(GL_DEPTH_TEST);
 
 	//GFX Pass
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
+	//shader.setMat4("_Model", glm::translate(glm::vec3(10, 0, 0)));
+	//theCoolSphere.draw();
 
+	glCullFace(GL_BACK);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE2);
+
+
+	SceneShader.use();
+
+	//island
+	SceneShader.setMat4("_Model", islandTrans.modelMatrix());
+	
+	SceneShader.setMat4("camera_viewProj", view);
+	SceneShader.setInt("_MainTex", 0);
+	SceneShader.setInt("zatoon", zaToon);
+	SceneShader.setVec3("_Pallet.highlight", std::get<Palette>(palette[palette_index]).highlight);
+	SceneShader.setVec3("_Pallet.shadow", std::get<Palette>(palette[palette_index]).shadow);
+
+
+	pIsland->draw(shdrTextures, SceneShader);
+
+	//first cool suzan
+	shader.use();
+
+	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+
+	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
+
+	shader.setMat4("camera_viewProj", view);
+	shader.setInt("_MainTex", 0);
+
+	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
+	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
+	
+	pCoolSuzanne->draw();
+	//draw dup
+	//add the offset
+	shader.setMat4("_Model", coolSuzanneTransformDup.modelMatrix());
+	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolPortal.normal);
+	shader.setFloat("_ClipRange", clipRange1);
+	pCoolSuzanne->draw();
+
+	//draw other suzan
+	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
+	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolPortal.normal);
+	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
+	
+	pCoolerSnazzySuzanne->draw();
+
+	//draw dup
+	shader.setMat4("_Model", coolerSnazzySuzanneTransformDup.modelMatrix());
+	shader.setVec3("_CullPos", coolerAwesomePortal.regularPortalTransform.position);
+	shader.setVec3("_CullNormal", coolerAwesomePortal.normal);
+	shader.setFloat("_ClipRange", clipRange2);
+
+	pCoolerSnazzySuzanne->draw();
+
+	//draw portals :3
+	glCullFace(GL_FRONT);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
 	portalShader.use();
 
 	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setInt("_MainTex", 0);
+	portalShader.setFloat("_Time", (float)glfwGetTime());
+	portalShader.setVec2("colors", colors);
 
 	coolPortal.portalMesh.draw();
-	
+
 	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
 	coolerAwesomePortal.portalMesh.draw();
-	
 
-	//shader.setMat4("_Model", glm::translate(glm::vec3(10, 0, 0)));
-	//theCoolSphere.draw();
-
-
-	glCullFace(GL_BACK);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	shader.use();
-	shader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
-	shader.setMat4("camera_viewProj", view);
-	shader.setInt("_MainTex", 0);
-	shader.setMat4("_Model", coolSuzanneTransform.modelMatrix());
-	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
-	pCoolSuzanne->draw();
-
-	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
-	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
-	pCoolerSnazzySuzanne->draw();
-
-	
 }
 
-void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
+void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader, ew::Shader SceneShader)
 {
 	//calcualte cam
 	ew::Camera portal = camera;
@@ -182,7 +259,7 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * destinationView);
+		RenderScene(sceneShader, portalShader,SceneShader, rockNormal, camera.projectionMatrix() * destinationView);
 
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -200,6 +277,7 @@ int main() {
 	ew::Shader lit_Shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 	ew::Shader portalView = ew::Shader("assets/Portal/PortalView.vert", "assets/Portal/PortalView.frag");
+	ew::Shader SceneShader = ew::Shader("assets/SceneShader.vert", "assets/SceneShader.frag");
 
 	pCoolSuzanne = new ew::Model("assets/suzanne.obj");
 	pCoolerSnazzySuzanne = new ew::Model("assets/suzanne.obj");
@@ -207,10 +285,14 @@ int main() {
 	theCoolSphere = ew::createSphere(3, 10);
 
 	coolPortal.portalMesh = ew::createPlane(5,5, 10);
-	coolPortal.regularPortalTransform.position = glm::vec3(0, 0, 0);
+	coolPortal.regularPortalTransform.position = glm::vec3(0, 1, 0);
 	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), glm::radians(180.f), 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+
+	//set the normals for the object clipping
+	coolPortal.normal = glm::vec3(0, 1, 0);
+	coolPortal.normal = coolPortal.regularPortalTransform.rotation * coolPortal.normal;
 
 	coolerAwesomePortal.portalMesh = ew::createPlane(5, 5, 10);
 	coolerAwesomePortal.regularPortalTransform.position = glm::vec3(10, 0, 0);
@@ -218,11 +300,43 @@ int main() {
 	coolerAwesomePortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	coolerAwesomePortal.linkedPortal = &coolPortal;
 
+	//set the normals for object clipping
+	coolerAwesomePortal.normal = glm::vec3(0, 1, 0);
+	coolerAwesomePortal.normal = coolerAwesomePortal.regularPortalTransform.rotation * coolerAwesomePortal.normal;
+
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
 	coolSuzanneTransform.position = glm::vec3(10, -2, 0);
-	coolerSnazzySuzanneTransform.position = glm::vec3(0, 0, 7);
+	coolSuzanneTransformDup.position = glm::vec3(0, 1, -2);
+
+
+	coolerSnazzySuzanneTransform.position = glm::vec3(0, 1, 7);
+	coolerSnazzySuzanneTransformDup.position = glm::vec3(10, 7, 0);
+	
+	//maybe try to get dynamic locations
+	coolerSnazzySuzanneTransformDup.rotation = glm::vec3(glm::radians(270.f), 0, 0);
+	coolSuzanneTransformDup.rotation = glm::vec3(glm::radians(90.f), 0, 0);
+
+	//draw island
+	pIsland = new ew::Model("assets/island/Island.obj");
+
+	islandTrans.position = glm::vec3(0,0,-200);
+	islandTrans.scale = glm::vec3(0.01);
+
+	//load textures
+	std::string path = "assets/";
+
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS00.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsMM03.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsMM02.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS01.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS05.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS04.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS07.png").c_str()));
+	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS06.png").c_str()));
+
+	zaToon = ew::loadTexture("ZAToon.png");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -234,9 +348,9 @@ int main() {
 		//RENDER
 		camController.move(window, &camera, deltaTime);
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
-		RenderPortalView(coolPortal, defaultLit, portalView);
-		RenderPortalView(coolerAwesomePortal, defaultLit, portalView);
-		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
+		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
+		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 
 		drawUI();
@@ -254,10 +368,52 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 	
-	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
+	if (ImGui::Button("coolerPortalMonkey UP"))
+	{
+		coolSuzanneTransform.position.y += 1;
+		coolSuzanneTransformDup.position.z += 1;
+	}
+	if (ImGui::Button("coolerPortalMonkey DOWN"))
+	{
+		coolSuzanneTransform.position.y -= 1;
+		coolSuzanneTransformDup.position.z -= 1;
+	}
+	if (ImGui::Button("AwsomePortalMonkey BACK"))
+	{
+		coolerSnazzySuzanneTransform.position.z -= 1;
+		coolerSnazzySuzanneTransformDup.position.y -= 1;
+	}
+	if (ImGui::Button("AwsomePortalMonkey FORWARD"))
+	{
+		coolerSnazzySuzanneTransform.position.z += 1;
+		coolerSnazzySuzanneTransformDup.position.y += 1;
+	}
+	ImGui::SliderFloat2("Colors", &colors.x, 0.1, 1);
+	ImGui::SliderFloat("Portal 1 Clip Range", &clipRange1, 0.1, 20);
+	ImGui::SliderFloat("Portal w Clip Range", &clipRange2, 0.1, 20);
+
+	if (ImGui::BeginCombo("Palette", std::get<std::string>(palette[palette_index]).c_str()))
+	{
+		for (auto n = 0; n < palette.size(); ++n)
+		{
+			auto is_selected = (std::get<0>(palette[palette_index]) == std::get<0>(palette[n]));
+			if (ImGui::Selectable(std::get<std::string>(palette[n]).c_str(), is_selected))
+			{
+				palette_index = n;
+			}
+			if (is_selected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::ColorEdit3("Highlight", &std::get<Palette>(palette[palette_index]).highlight[0]);
+	ImGui::ColorEdit3("Shadow", &std::get<Palette>(palette[palette_index]).shadow[0]);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
 	ImGui::End();
 
