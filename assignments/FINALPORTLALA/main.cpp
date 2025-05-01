@@ -224,11 +224,11 @@ void RenderScene2(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm:
 
 }
 
-void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, int maxRecursion, int currentRecursion, ew::Shader& sceneShader, ew::Shader& portalShader)
+void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, int maxRecursion, int currentRecursion, ew::Shader& sceneShader, ew::Shader& portalShader, int t)
 {
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < 1; i++)
 	{
-		auto p = portals[i];
+		auto p = portals[i+t];
 
 		//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
 		ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
@@ -261,7 +261,7 @@ void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, in
 		{
 			// Recursion case
 			// Pass our new view matrix and the clipped projection matrix (see above)
-			DrawRecursivePortals(destinationView, projMat, maxRecursion, currentRecursion + 1, sceneShader, portalShader);
+			DrawRecursivePortals(destinationView, projMat, maxRecursion, currentRecursion + 1, sceneShader, portalShader, t);
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
@@ -420,7 +420,8 @@ int main() {
 		//end
 
 		//DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
-		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 3, 0, defaultLit, portalView);
+		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 2, 0, defaultLit, portalView, 1);
+		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 2, 0, defaultLit, portalView, 0);
 	
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
