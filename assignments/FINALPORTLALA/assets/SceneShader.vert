@@ -23,12 +23,6 @@ void main()
 	vs_surface.worldNormal = transpose(inverse(mat3(_Model))) * v_In_Normal;
 	vs_surface.texcoord = in_texcoord;
 
-	//discard vertices of behind plane normals
-
-	
-
 	gl_Position = camera_viewProj * _Model * vec4(v_In_Pos, 1.0);
 
-	//clip if behind the plane
-	
 }

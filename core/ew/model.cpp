@@ -9,6 +9,7 @@
 #include <assimp/scene.h>
 #include <glm/glm.hpp>
 
+
 namespace ew {
 	ew::Mesh processAiMesh(aiMesh* aiMesh);
 
@@ -27,6 +28,17 @@ namespace ew {
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
 		{
+			m_meshes[i].draw();
+		}
+	}
+
+	//overides texture peramiter one
+	void Model::draw(std::vector<GLuint>& path, ew::Shader& shdr)
+	{
+		for (size_t i = 0; i < m_meshes.size(); i++)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, path[i]);
 			m_meshes[i].draw();
 		}
 	}
