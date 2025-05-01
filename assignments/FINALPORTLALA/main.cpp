@@ -269,18 +269,17 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
-void DrawRecursive(tsa::FrameBuffer portalBuffer, ew::Shader& reShader, Portal p)
+void DrawRecursive(tsa::FrameBuffer portalBuffer, ew::Shader& reShader, Portal p, float level)
 {
 	
-
 	//calcualte cam
 	ew::Camera portal = camera;
 
 			//Translates camera position and target in relation to linked portal. This only works for specific portal rotations
-	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
+	glm::vec3 toPortal = p.regularPortalTransform.position - (camera.position);
 	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
-	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
-	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
+	portal.position = (p.linkedPortal->regularPortalTransform.position - toPortal) + glm::vec3(0,level,0);
+	portal.target = (p.linkedPortal->regularPortalTransform.position - translatedTarget) + glm::vec3(0,level,0);
 
 	//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
 	ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
@@ -299,7 +298,7 @@ void DrawRecursive(tsa::FrameBuffer portalBuffer, ew::Shader& reShader, Portal p
 	reShader.use();
 	reShader.setMat4("_Model", p.regularPortalTransform.modelMatrix());
 
-	reShader.setMat4("camera_viewProj", camera.projectionMatrix() * camera.viewMatrix());
+	reShader.setMat4("camera_viewProj", camera.projectionMatrix() * destinationView);
 	reShader.setInt("_MainTex", 0);
 
 	p.portalMesh.draw();
@@ -400,15 +399,66 @@ int main() {
 		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
 
-		//base portal cases-->why can I not just draw this?????? 
+		 
 		glBindFramebuffer(GL_FRAMEBUFFER, buffers[0].fbo); //bind the fbpo
 		{
-			glEnable(GL_DEPTH_TEST);//
+			glEnable(GL_DEPTH_TEST);
 			//GFX Pass
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
-			DrawRecursive(coolPortal.framebuffer, re, coolPortal);
+			DrawRecursive(coolPortal.framebuffer, re, coolPortal, 10);
+			RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+
+		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, buffers[1].fbo); //bind the fbpo
+		{
+			glEnable(GL_DEPTH_TEST);
+			//GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+			DrawRecursive(coolerAwesomePortal.framebuffer, re, coolerAwesomePortal, 10);
+			RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+
+		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, buffers[2].fbo); //bind the fbo
+		{
+			glEnable(GL_DEPTH_TEST);
+			//GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+			DrawRecursive(buffers[0], re, coolPortal, 15);
+			
+
+		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, buffers[3].fbo); //bind the fbpo
+		{
+			glEnable(GL_DEPTH_TEST);
+			//GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+			DrawRecursive(buffers[1], re, coolerAwesomePortal, 15);
+			RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+		
+
+		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, buffers[4].fbo); //bind the fbpo
+		{
+			glEnable(GL_DEPTH_TEST);
+			//GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+			DrawRecursive(buffers[2], re, coolPortal, 20);
+		
+		
 
 		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -431,9 +481,11 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 	
-	ImGui::Image((ImTextureID)(intptr_t)TestBuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)buffers[0].colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)buffers[2].colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)buffers[4].colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)buffers[1].colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)buffers[3].colorBuffer[0], ImVec2(screenWidth, screenHeight));
 
 	if (ImGui::Button("coolerPortalMonkey UP"))
 	{
