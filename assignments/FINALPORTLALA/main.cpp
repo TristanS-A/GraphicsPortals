@@ -94,6 +94,8 @@ Portal coolPortal;
 Portal coolerAwesomePortal;
 Portal recursivePortal1;
 Portal recursivePortal2;
+float yRotation;
+int recursionLevel = 10;
 GLint rockNormal;
 GLuint zaToon;
 
@@ -111,11 +113,11 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	glEnable(GL_DEPTH_TEST);
 
 	glCullFace(GL_BACK);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
 	glActiveTexture(GL_TEXTURE1);
-	glActiveTexture(GL_TEXTURE2);
-
+	glBindTexture(GL_TEXTURE_2D, zaToon);
 
 	SceneShader.use();
 
@@ -124,7 +126,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	
 	SceneShader.setMat4("camera_viewProj", view);
 	SceneShader.setInt("_MainTex", 0);
-	SceneShader.setInt("zatoon", zaToon);
+	SceneShader.setInt("zatoon", 1);
 	SceneShader.setVec3("_Pallet.highlight", std::get<Palette>(palette[palette_index]).highlight);
 	SceneShader.setVec3("_Pallet.shadow", std::get<Palette>(palette[palette_index]).shadow);
 
@@ -371,6 +373,8 @@ int main() {
 	recursivePortal2.theStupidFramebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal2.linkedPortal = &recursivePortal1;
 
+	yRotation = 90;
+
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
 	rockNormal = ew::loadTexture("assets/Rock_Normal.png");
 
@@ -409,7 +413,7 @@ int main() {
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS07.png").c_str()));
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS06.png").c_str()));
 
-	zaToon = ew::loadTexture("ZAToon.png");
+	zaToon = ew::loadTexture((path + "ZAtoon.png").c_str());
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -446,8 +450,8 @@ int main() {
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
 
 		//DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
-		DrawRecursivePortals(recursivePortal1, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, SceneShader);
-		DrawRecursivePortals(recursivePortal2, camera.viewMatrix(), camera.projectionMatrix(), 10, 0, defaultLit, portalView, SceneShader);
+		DrawRecursivePortals(recursivePortal1, camera.viewMatrix(), camera.projectionMatrix(), recursionLevel, 0, defaultLit, portalView, SceneShader);
+		DrawRecursivePortals(recursivePortal2, camera.viewMatrix(), camera.projectionMatrix(), recursionLevel, 0, defaultLit, portalView, SceneShader);
 	
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
@@ -466,15 +470,6 @@ void drawUI() {
 	ImGui::NewFrame();
 
 	ImGui::Begin("Settings");
-
-	//ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-
 
 	if (ImGui::Button("coolerPortalMonkey UP"))
 	{
@@ -500,6 +495,13 @@ void drawUI() {
 	ImGui::SliderFloat("Portal 1 Clip Range", &clipRange1, 0.1, 20);
 	ImGui::SliderFloat("Portal w Clip Range", &clipRange2, 0.1, 20);
 
+	if (ImGui::SliderFloat("Recursive Portal Rotation", &yRotation, 0, 180))
+	{
+		recursivePortal2.regularPortalTransform.rotation = glm::vec3(glm::radians(270.0f), glm::radians(yRotation), 0);
+	}
+
+	ImGui::SliderInt("Max Recursion", &recursionLevel, 0, 50);
+
 	if (ImGui::BeginCombo("Palette", std::get<std::string>(palette[palette_index]).c_str()))
 	{
 		for (auto n = 0; n < palette.size(); ++n)
@@ -519,6 +521,12 @@ void drawUI() {
 	ImGui::ColorEdit3("Highlight", &std::get<Palette>(palette[palette_index]).highlight[0]);
 	ImGui::ColorEdit3("Shadow", &std::get<Palette>(palette[palette_index]).shadow[0]);
 	ImGui::Checkbox("Using Normal Map", &usingNormalMap);
+
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+
 	ImGui::End();
 
 	ImGui::Render();
