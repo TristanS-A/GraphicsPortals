@@ -57,6 +57,7 @@ public:
 	glm::vec3 virtualCameraRotOffset = glm::vec3(glm::radians(180.f), glm::radians(0.f), 0.0);
 	glm::vec3 normal;
 	tsa::FrameBuffer framebuffer;
+	tsa::FrameBuffer theStupidFramebuffer;
 
 	//function here becasue tristan is bad cringe and smells like carrots
 
@@ -105,6 +106,23 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 
+	glCullFace(GL_FRONT);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	portalShader.use();
+
+	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
+	portalShader.setMat4("camera_viewProj", view);
+	portalShader.setInt("_MainTex", 0);
+	coolPortal.portalMesh.draw();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
+	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
+	coolerAwesomePortal.portalMesh.draw();
+
+	
 	glCullFace(GL_BACK);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
@@ -124,189 +142,73 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, GLuint tex, glm::
 	pRecursiveSuzzane->draw();
 
 	glCullFace(GL_FRONT);
-
-	portalShader.use();
-
-	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
-	portalShader.setMat4("camera_viewProj", view);
-	portalShader.setInt("_MainTex", 0);
-	coolPortal.portalMesh.draw();
-
-	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
-	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
-	coolerAwesomePortal.portalMesh.draw();
-
-	glBindTexture(GL_TEXTURE_2D, recursivePortal1.framebuffer.colorBuffer[0]);
-	portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, recursivePortal1.theStupidFramebuffer.colorBuffer[0]);
+	shader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
 	recursivePortal1.portalMesh.draw();
 
-	glBindTexture(GL_TEXTURE_2D, recursivePortal2.framebuffer.colorBuffer[0]);
-	portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, recursivePortal2.theStupidFramebuffer.colorBuffer[0]);
+	shader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
 	recursivePortal2.portalMesh.draw();
+
 }
 
 void DrawRecursivePortals(glm::mat4& const viewMat, glm::mat4& const projMat, int maxRecursion, int currentRecursion, ew::Shader& sceneShader, ew::Shader& portalShader)
 {
-
-	glBindFramebuffer(GL_FRAMEBUFFER, portals[1].framebuffer.fbo);
+	for (int i = 0; i < 2; i++)
 	{
-		for (int i = 1; i < 2; i++)
+		auto p = portals[i];
+
+		//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
+		ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
+		linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + p.linkedPortal->virtualCameraRotOffset);
+
+		//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
+		glm::mat4 destinationView =
+			camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
+			* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
+			* glm::inverse(linkedPTrans.modelMatrix());
+
+		// Base case, render inside of inner portal
+		if (currentRecursion == maxRecursion)
 		{
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			glDepthMask(GL_FALSE);
+			//bind the portal frame buffer then draw the scene with color attachemnt
+			glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
+			RenderScene(sceneShader, portalShader, rockNormal, projMat * destinationView);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-			// Disable depth test
-			glDisable(GL_DEPTH_TEST);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, p.framebuffer.fbo);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, p.theStupidFramebuffer.fbo);
 
-			// Enable stencil test, to prevent drawing outside
-			// region of current portal depth
-			glEnable(GL_STENCIL_TEST);
-
-			// Fail stencil test when inside of outer portal
-			// (fail where we should be drawing the inner portal)
-			glStencilFunc(GL_NOTEQUAL, currentRecursion, 0xFF);
-
-			// Increment stencil value on stencil fail
-			// (on area of inner portal)
-			glStencilOp(GL_INCR, GL_KEEP, GL_KEEP);
-
-			// Enable (writing into) all stencil bits
-			glStencilMask(0xFF);
+			glReadBuffer(p.framebuffer.fbo);
+			glDrawBuffer(p.theStupidFramebuffer.fbo);
+			glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 			
-			portalShader.use();
-			portalShader.setMat4("camera_viewProj",projMat * viewMat);
-
-			portals[1].portalMesh.draw();
-
-			ew::Camera portal = camera;
-
-			/*glm::mat4 destinationView =
-				camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
-				* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
-					* glm::inverse(p.linkedPortal->regularPortalTransform.modelMatrix());*/
-
-					// Translates camera position and target in relation to linked portal. This only works for specific portal rotations
-
-			auto p = portals[1];
-			glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
-			glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
-			portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
-			portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
-
-			//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
-			ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
-			linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + p.virtualCameraRotOffset);
-
-			//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
-			glm::mat4 destinationView =
-				camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
-				* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::inverse(linkedPTrans.modelMatrix());
-
-			// Base case, render inside of inner portal
-			if (currentRecursion == maxRecursion)
-			{
-				// Enable color and depth drawing
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-				glDepthMask(GL_TRUE);
-
-				// Clear the depth buffer so we don't interfere with stuff
-				// outside of this inner portal
-				glClear(GL_DEPTH_BUFFER_BIT);
-
-				// Enable the depth test
-				// So the stuff we render here is rendered correctly
-				glEnable(GL_DEPTH_TEST);
-
-				// Enable stencil test
-				// So we can limit drawing inside of the inner portal
-				glEnable(GL_STENCIL_TEST);
-
-				// Disable drawing into stencil buffer
-				glStencilMask(0x00);
-
-				// Draw only where stencil value == recursionLevel + 1
-				// which is where we just drew the new portal
-				glStencilFunc(GL_EQUAL, currentRecursion + 1, 0xFF);
-
-				// Draw scene objects with destView, limited to stencil buffer
-				// use an edited projection matrix to set the near plane to the portal plane
-				
-				//drawNonPortals(destView, projMat);
-				RenderScene(sceneShader, portalShader, rockNormal, destinationView);
-			}
-			else
-			{
-				// Recursion case
-				// Pass our new view matrix and the clipped projection matrix (see above)
-				DrawRecursivePortals(destinationView, portals[1].ObliqueClippingMat(viewMat, projMat, portals[1].regularPortalTransform), maxRecursion, currentRecursion + 1, sceneShader, portalShader);
-			}
-
-			// Disable color and depth drawing
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			glDepthMask(GL_FALSE);
-
-			// Enable stencil test and stencil drawing
-			glEnable(GL_STENCIL_TEST);
-			glStencilMask(0xFF);
-
-			// Fail stencil test when inside of our newly rendered
-			// inner portal
-			glStencilFunc(GL_NOTEQUAL, currentRecursion + 1, 0xFF);
-
-			// Decrement stencil value on stencil fail
-			// This resets the incremented values to what they were before,
-			// eventually ending up with a stencil buffer full of zero's again
-			// after the last (outer) step.
-			glStencilOp(GL_DECR, GL_KEEP, GL_KEEP);
-
-			// Draw portal into stencil buffer
-			portalShader.use();
-			portalShader.setMat4("camera_viewProj", projMat * viewMat);
-			portals[1].portalMesh.draw();
-
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+		else
+		{
+			// Recursion case
+			// Pass our new view matrix and the clipped projection matrix (see above)
+			DrawRecursivePortals(destinationView, projMat, maxRecursion, currentRecursion + 1, sceneShader, portalShader);
 		}
 
-		// Disable the stencil test and stencil writing
-		glDisable(GL_STENCIL_TEST);
-		glStencilMask(0x00);
+		glBindFramebuffer(GL_FRAMEBUFFER, p.framebuffer.fbo);
+		RenderScene(sceneShader, portalShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
-		// Disable color writing
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		// Enable the depth test, and depth writing.
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, p.framebuffer.fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, p.theStupidFramebuffer.fbo);
 
-		// Make sure we always write the data into the buffer
-		glDepthFunc(GL_ALWAYS);
+		glReadBuffer(p.framebuffer.fbo);
+		glDrawBuffer(p.theStupidFramebuffer.fbo);
+		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-		// Clear the depth buffer
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		// Reset the depth function to the default
-		glDepthFunc(GL_LESS);
-
-		// Enable stencil test and disable writing to stencil buffer
-		glEnable(GL_STENCIL_TEST);
-		glStencilMask(0x00);
-
-		// Draw at stencil >= recursionlevel
-		// which is at the current level or higher (more to the inside)
-		// This basically prevents drawing on the outside of this level.
-		glStencilFunc(GL_LEQUAL, currentRecursion, 0xFF);
-
-		// Enable color and depth drawing again
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_TRUE);
-
-		// And enable the depth test
-		glEnable(GL_DEPTH_TEST);
-
-
-		RenderScene(sceneShader, portalShader, rockNormal, viewMat * projMat);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShader)
@@ -391,12 +293,14 @@ int main() {
 	recursivePortal1.regularPortalTransform.position = glm::vec3(-10, 20, -3);
 	recursivePortal1.regularPortalTransform.rotation = glm::vec3(glm::radians(90.0f), 0, 0);
 	recursivePortal1.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+	recursivePortal1.theStupidFramebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal1.linkedPortal = &recursivePortal2;
 
 	recursivePortal2.portalMesh = ew::createPlane(5, 5, 10);
 	recursivePortal2.regularPortalTransform.position = glm::vec3(-10, 20, -9);
 	recursivePortal2.regularPortalTransform.rotation = glm::vec3(glm::radians(270.0f), 0, 0);
 	recursivePortal2.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+	recursivePortal2.theStupidFramebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 	recursivePortal2.linkedPortal = &recursivePortal1;
 
 	GLint Rock_Color = ew::loadTexture("assets/Rock_Color.png");
@@ -425,35 +329,25 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
-		//for (int i = 0; i < 2; i++)
-		//{
-		//	glBindFramebuffer(GL_FRAMEBUFFER, portals[i].framebuffer.fbo);
+		for (int i = 0; i < 2; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, portals[i].framebuffer.fbo);
 
-		//	// GFX Pass
-		//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
-		//}
-		
+			// GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
-		//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
-		ew::Transform linkedPTrans = portals[1].linkedPortal->regularPortalTransform;
-		linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + portals[1].linkedPortal->virtualCameraRotOffset);
+			glBindFramebuffer(GL_FRAMEBUFFER, portals[i].theStupidFramebuffer.fbo);
 
-		//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
-		glm::mat4 destinationView =
-			camera.viewMatrix() * portals[1].regularPortalTransform.modelMatrix()
-			* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
-			* glm::inverse(linkedPTrans.modelMatrix());
-
-		
-		//base case
-		//RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * destinationView);
-
-		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
+			// GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+		}
 
 		DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
 
+		//glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		RenderScene(defaultLit, portalView, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
 	
 
@@ -477,6 +371,7 @@ void drawUI() {
 	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)recursivePortal1.theStupidFramebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
 	ImGui::Image((ImTextureID)(intptr_t)recursivePortal2.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
 
