@@ -57,6 +57,8 @@ float clipRange2 = 10.f;
 
 glm::vec2 colors = glm::vec2(0.4, 0.15);
 
+tsa::FrameBuffer TestBuffer;
+
 typedef struct
 {
 
@@ -121,6 +123,9 @@ GLint rockNormal;
 GLuint zaToon;
 
 ew::Mesh theCoolSphere;
+
+//frame buffers
+std::vector<tsa::FrameBuffer>buffers;
 
 float offset1 = 0;
 float offset2 = 0;
@@ -264,6 +269,41 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
+void DrawRecursive(tsa::FrameBuffer portalBuffer, ew::Shader& reShader, Portal p)
+{
+	
+
+	//calcualte cam
+	ew::Camera portal = camera;
+
+			//Translates camera position and target in relation to linked portal. This only works for specific portal rotations
+	glm::vec3 toPortal = p.regularPortalTransform.position - camera.position;
+	glm::vec3 translatedTarget = p.regularPortalTransform.position - camera.target;
+	portal.position = p.linkedPortal->regularPortalTransform.position - toPortal;
+	portal.target = p.linkedPortal->regularPortalTransform.position - translatedTarget;
+
+	//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
+	ew::Transform linkedPTrans = p.linkedPortal->regularPortalTransform;
+	linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + p.virtualCameraRotOffset);
+
+	//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
+	glm::mat4 destinationView =
+		camera.viewMatrix() * p.regularPortalTransform.modelMatrix()
+		* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
+		* glm::inverse(linkedPTrans.modelMatrix());
+
+	//send it to color
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, portalBuffer.colorBuffer[0]);
+
+	reShader.use();
+	reShader.setMat4("_Model", p.regularPortalTransform.modelMatrix());
+
+	reShader.setMat4("camera_viewProj", camera.projectionMatrix() * camera.viewMatrix());
+	reShader.setInt("_MainTex", 0);
+
+	p.portalMesh.draw();
+}
 
 int main() {
 	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
@@ -278,6 +318,7 @@ int main() {
 	ew::Shader defaultLit = ew::Shader("assets/Portal/Default.vert", "assets/Portal/Default.frag");
 	ew::Shader portalView = ew::Shader("assets/Portal/PortalView.vert", "assets/Portal/PortalView.frag");
 	ew::Shader SceneShader = ew::Shader("assets/SceneShader.vert", "assets/SceneShader.frag");
+	ew::Shader re = ew::Shader("assets/RecursiveBuffer.vert", "assets/RecursiveBuffer.frag");
 
 	pCoolSuzanne = new ew::Model("assets/suzanne.obj");
 	pCoolerSnazzySuzanne = new ew::Model("assets/suzanne.obj");
@@ -285,8 +326,8 @@ int main() {
 	theCoolSphere = ew::createSphere(3, 10);
 
 	coolPortal.portalMesh = ew::createPlane(5,5, 10);
-	coolPortal.regularPortalTransform.position = glm::vec3(0, 1, 0);
-	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(90.f), glm::radians(180.f), 0);
+	coolPortal.regularPortalTransform.position = glm::vec3(10, -5, 0);
+	coolPortal.regularPortalTransform.rotation = glm::vec3(glm::radians(180.f), glm::radians(180.f), 0);
 	coolPortal.linkedPortal = &coolerAwesomePortal;
 	coolPortal.framebuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
 
@@ -336,7 +377,15 @@ int main() {
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS07.png").c_str()));
 	shdrTextures.push_back(ew::loadTexture((path + "island/OutsSS06.png").c_str()));
 
-	zaToon = ew::loadTexture("ZAToon.png");
+	//caveman tech
+	for (int i = 0; i < 5; i++)
+	{
+		buffers.push_back(tsa::createHDR_FramBuffer(screenWidth, screenHeight));
+	}
+
+	TestBuffer = tsa::createHDR_FramBuffer(screenWidth, screenHeight);
+
+	zaToon = ew::loadTexture("assets/ZAToon.png");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -350,8 +399,22 @@ int main() {
 		//thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
 		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
+
+		//base portal cases-->why can I not just draw this?????? 
+		glBindFramebuffer(GL_FRAMEBUFFER, buffers[0].fbo); //bind the fbpo
+		{
+			glEnable(GL_DEPTH_TEST);//
+			//GFX Pass
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+			DrawRecursive(coolPortal.framebuffer, re, coolPortal);
+
+		}glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
+		
 
 		drawUI();
 
@@ -368,9 +431,9 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 	
-	//ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
-	//ImGui::Image((ImTextureID)(intptr_t)coolerAwesomePortal.framebuffer.depthBuffer, ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)TestBuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)coolPortal.framebuffer.colorBuffer[0], ImVec2(screenWidth, screenHeight));
+	ImGui::Image((ImTextureID)(intptr_t)buffers[0].colorBuffer[0], ImVec2(screenWidth, screenHeight));
 
 	if (ImGui::Button("coolerPortalMonkey UP"))
 	{
