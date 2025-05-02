@@ -21,7 +21,7 @@ struct Pallet
 uniform Pallet _Pallet;
 
 
-uniform vec3 _LightDirection = vec3(0.0, 1.0,0.0);
+uniform vec3 _LightDirection = vec3(0.0, -1.0,0.0);
 uniform vec3 _LightColor = vec3(1.0);
 uniform vec3 _AmbientColor = vec3(0.3,0.4,0.46);
 
@@ -39,8 +39,8 @@ vec3 toonLighting(vec3 normal, vec2 frag_pos, vec3 light_direction)
 void main()
 {
 	vec3 normal = normalize(fs_surface.worldNormal);
-	//vec3 lightColor = toonLighting(normal, fs_surface.texcoord, _LightDirection); 
+	vec3 lightColor = toonLighting(normal, fs_surface.texcoord, _LightDirection); 
 	vec3 objectColor = texture(_MainTex, fs_surface.texcoord).rgb;
 
-	FragColor = vec4(objectColor * vec3(0.6), 1.0); 
+	FragColor = vec4(objectColor * lightColor, 1.0); 
 }
