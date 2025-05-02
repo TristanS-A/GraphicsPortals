@@ -75,7 +75,7 @@ void main()
 		color += (0.4 / power) * snoise(coord + vec3(0.,-_Time*.05, _Time*.01), power*16.);
 	}
 
-	float inside = 1 - step(0.42, length(p));
+	float inside = 1 - smoothstep(0.41, 0.42, length(p));
 
 	//invert color
 	color = 1 - color;
