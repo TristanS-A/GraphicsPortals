@@ -38,6 +38,7 @@ float deltaTime;
 //Caching things
 ew::Camera camera;
 ew::CameraController camController;
+glm::vec3 prevCamPosition = {0, 0, 0};
 
 ew::Model* pCoolSuzanne;
 ew::Transform coolSuzanneTransform;
@@ -315,6 +316,37 @@ void RenderPortalView(Portal& p, ew::Shader& sceneShader, ew::Shader& portalShad
 	}glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+void HandlePortalCamera()
+{
+	for each (Portal portal in portals)
+	{
+		glm::vec3 prevToPortal = glm::normalize(portal.regularPortalTransform.position - prevCamPosition);
+		glm::vec3 currToPortal = glm::normalize(portal.regularPortalTransform.position - camera.position);
+
+		int prevSide = glm::floor(glm::dot(prevToPortal, portal.normal));
+		int currSide = glm::floor(glm::dot(currToPortal, portal.normal));
+
+		if (prevSide != currSide && glm::length(currToPortal) < 2)
+		{
+			////Rotate and set position of teleported camera
+
+			//Adds an offset to get the correct virtual camera rotation (not just the portals rotation)
+			ew::Transform linkedPTrans = portal.linkedPortal->regularPortalTransform;
+			linkedPTrans.rotation = glm::vec3(glm::eulerAngles(linkedPTrans.rotation) + portal.virtualCameraRotOffset);
+
+			//Get the virtual camera view matrix (rotates camera by current portal rotation and then linked portal rotation)
+			glm::mat4 destinationView =
+				camera.viewMatrix() * portal.regularPortalTransform.modelMatrix()
+				* glm::rotate(glm::mat4(1.0f), glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f))
+				* glm::inverse(linkedPTrans.modelMatrix());
+
+			//std::cout << destinationView[0].x << " " << destinationView[1].z << " " << destinationView[3].y << "\n";
+			//std::cout << portal.linkedPortal->regularPortalTransform.position.x << " " << portal.linkedPortal->regularPortalTransform.position.y << " " << portal.linkedPortal->regularPortalTransform.position.z << "\n";
+			//camera.position = glm::vec3(destinationView[0].x, destinationView[1].z, destinationView[3].y);
+		}
+	}
+}
+
 int main() {
 	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
@@ -422,8 +454,12 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
+		prevCamPosition = camera.position;
+
 		//RENDER
 		camController.move(window, &camera, deltaTime);
+
+		HandlePortalCamera();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
