@@ -53,7 +53,7 @@ short matIndex = 0;
 Material* currMat = &mats[matIndex];
 bool usingNormalMap = true;
 
-void thing(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, GLint tex, GLint normalMap, const float dt)
+void renderScene(ew::Shader shader, ew::Model &model, ew::Transform &modelTransform, GLint tex, GLint normalMap, const float dt)
 {
 	//Pipeline defenitions
 	glEnable(GL_CULL_FACE);
@@ -112,7 +112,7 @@ int main() {
 
 		//RENDER
 		camController.move(window, &camera, deltaTime);
-		thing(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
+		renderScene(lit_Shader, suzanne, suzanneTransform, Rock_Color, rockNormal, deltaTime);
 		drawUI();
 
 		glfwSwapBuffers(window);

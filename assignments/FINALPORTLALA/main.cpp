@@ -30,8 +30,8 @@ GLFWwindow* initWindow(const char* title, int width, int height);
 void drawUI();
 
 //Global state
-int screenWidth = 1080;
-int screenHeight = 720;
+int screenWidth = 1080 * 1.5;
+int screenHeight = 720 * 1.5;
 float prevFrameTime;
 float deltaTime;
 
@@ -88,7 +88,7 @@ public:
 	glm::vec3 virtualCameraRotOffset = glm::vec3(glm::radians(180.f), glm::radians(0.f), 0.0);
 	glm::vec3 normal;
 	tsa::FrameBuffer framebuffer;
-	tsa::FrameBuffer theStupidFramebuffer;
+	tsa::FrameBuffer theStupidFramebuffer; //Used as a write destination while reading from Portal->frambuffer
 };
 
 Portal coolPortal;
@@ -106,6 +106,8 @@ ew::Mesh theCoolSphere;
 
 float offset1 = 0;
 float offset2 = 0;
+
+//Handles base rendering of the scene
 void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneShader, GLuint tex, glm::mat4 view)
 {
 	glEnable(GL_BLEND);
@@ -149,6 +151,8 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	shader.setVec3("_ColorOffset", glm::vec3(0, 0, 1));
 	
 	pCoolSuzanne->draw();
+
+
 	//draw dup
 	//add the offset
 	shader.setMat4("_Model", coolSuzanneTransformDup.modelMatrix());
@@ -157,6 +161,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	shader.setFloat("_ClipRange", clipRange1);
 	pCoolSuzanne->draw();
 
+
 	//draw other suzan
 	shader.setMat4("_Model", coolerSnazzySuzanneTransform.modelMatrix());
 	shader.setVec3("_CullPos", coolPortal.regularPortalTransform.position);
@@ -164,6 +169,7 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	shader.setVec3("_ColorOffset", glm::vec3(1, 0, 0));
 	
 	pCoolerSnazzySuzanne->draw();
+
 
 	//draw dup
 	shader.setMat4("_Model", coolerSnazzySuzanneTransformDup.modelMatrix());
@@ -180,11 +186,11 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 
 	pRecursiveSuzzane->draw();
 
-	//draw portal frame?
 	glCullFace(GL_FRONT);
 
 	portalShader.use();
 
+	//Draws first non recursive portal
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, coolPortal.framebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", coolPortal.regularPortalTransform.modelMatrix());
@@ -194,17 +200,20 @@ void RenderScene(ew::Shader& shader, ew::Shader& portalShader, ew::Shader SceneS
 	portalShader.setVec2("colors", colors);
 	coolPortal.portalMesh.draw();
 
+	//Draws second non recursive portal
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, coolerAwesomePortal.framebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", coolerAwesomePortal.regularPortalTransform.modelMatrix());
 	coolerAwesomePortal.portalMesh.draw();
 
+	//Draws first recursive portal frame
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, recursivePortal1.theStupidFramebuffer.colorBuffer[0]);
 	portalShader.setMat4("camera_viewProj", view);
 	portalShader.setMat4("_Model", recursivePortal1.regularPortalTransform.modelMatrix());
 	recursivePortal1.portalMesh.draw();
 
+	//Draw second recursive portal frame
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, recursivePortal2.theStupidFramebuffer.colorBuffer[0]);
 	portalShader.setMat4("_Model", recursivePortal2.regularPortalTransform.modelMatrix());
@@ -236,6 +245,7 @@ void DrawRecursivePortals(Portal portalToRender, glm::mat4& const viewMat, glm::
 		RenderScene(sceneShader, portalShader, SceneShader, rockNormal, projMat * destinationView);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+		//Reads from one framebuffer and draws to the other (because you cannot both read and write on the same framebuffer)
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, portalToRender.framebuffer.fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, portalToRender.theStupidFramebuffer.fbo);
 
@@ -348,7 +358,7 @@ void HandlePortalCamera()
 }
 
 int main() {
-	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
+	GLFWwindow* window = initWindow("Recursive Portals", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	camera.position = { 0.0f, 0.0f, 5.0f };
@@ -456,10 +466,10 @@ int main() {
 
 		prevCamPosition = camera.position;
 
-		//RENDER
+		//Handle camera controls
 		camController.move(window, &camera, deltaTime);
 
-		HandlePortalCamera();
+		//HandlePortalCamera();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -467,6 +477,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
+		//Clearing portal frambuffers
 		for (int i = 0; i < 4; i++)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, portals[i].framebuffer.fbo);
@@ -482,13 +493,15 @@ int main() {
 			glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 		}
 
+		//Renders non recursive portals
 		RenderPortalView(coolPortal, defaultLit, portalView, SceneShader);
 		RenderPortalView(coolerAwesomePortal, defaultLit, portalView, SceneShader);
 
-		//DrawRecursivePortals(camera.viewMatrix(), camera.projectionMatrix(), 5, 0, defaultLit, portalView);
+		//Draws recursive portals
 		DrawRecursivePortals(recursivePortal1, camera.viewMatrix(), camera.projectionMatrix(), recursionLevel, 0, defaultLit, portalView, SceneShader);
 		DrawRecursivePortals(recursivePortal2, camera.viewMatrix(), camera.projectionMatrix(), recursionLevel, 0, defaultLit, portalView, SceneShader);
 	
+		//Rendering the whole scene with portals last
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		RenderScene(defaultLit, portalView, SceneShader, rockNormal, camera.projectionMatrix() * camera.viewMatrix());
 
